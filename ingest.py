@@ -4,6 +4,9 @@ import signal
 from optparse import OptionParser, OptionGroup
 import os
 import ConfigParser
+import sys
+from FileHandler import FileHandler
+
 
 #Defaults...
 CONFIG_FILE_NAME = 'ingest.conf'
@@ -47,24 +50,33 @@ def main():
     try:
         configp = ConfigParser.SafeConfigParser()
         
+        if(options.configfile):
+            f = options.configfile
+        else:
+            f = CONFIG_FILE_NAME
         configp.read(options.configfile)
             
         section = configp.items('Mappings')
+        mapTo = ['pattern', 'prefix', 'contentmodel', 'modulePackage', 
+        'moduleName', 'classPackage', 'className']
         mappings = dict()
-        modules = dict()
         for sect, values in section:
-            mappings[sect] = dict(zip(['type', 'pattern', 'prefix', 
-                'contentmodel', 'moduleName'], values.split(',')))
+            mappings[sect] = dict(zip(mapTo, values.split(',')))
             try:
-                mappings[sect]['module'] = __import__(mappings[sect]['moduleName'])
-            except (ImportError):
-                logger.warning('Couldn\'t find module: ' + 
-                    mappings[sect]['moduleName'] + '-> Continuing happily' + 
-                    ' (for now...)')
+                mappings[sect]['module'] = __import__(mappings[sect]['modulePackage'])
+            except ImportError as e:
+                logger.error(e)
+            try:
+                mappings[sect]['class'] = __import__(mappings[sect]['classPackage'])
+            except ImportError as e:
+                logger.error(e)
+            
     except (ConfigParser.Error, ValueError), e:
-        logger.warning('Error reading config file...  Continuing merrily.')
+        logger.warning('Error reading config file: %s ->  Continuing merrily.', f)
     logger.debug('Done with ConfigParser')  
-    logger.debug(mappings)
+    
+    logger.debug("Mappings: %s", mappings)
+    
     logger.debug("Options: %s", options)
     for o in options.dirs:
         try:
@@ -74,24 +86,26 @@ def main():
                     for f in files:
                         name = os.path.join(root, f)
                         if options.files.count(name) > 0:
-                            logger.debug('Already have: ' + f);
+                            logger.warning('Already have: %s', f);
                         else:                          
                             options.files.append(name)
-                            logger.debug('Add to \'files\' list: ' + name)
-                            
+                            logger.debug('Add to \'files\' list: %s', name) 
             else:
                 for f in os.listdir(o):
                     if not os.path.isdir(f):
-                        options.files.append(f)
-                        logger.debug('Add to \'files\' list: ' + f)
-            logger.debug('Done adding files from: ' + o)
+                        options.files.append(os.path.join(o, f))
+                        logger.debug('Add to \'files\' list: %s', f)
+            logger.debug('Done adding files from: %s', o)
         except(os.error):
-            logger.warning('Not a directory!: ' + o)
+            logger.warning('Not a directory!: %s', o)
 
     for f in options.files:
         if f.endswith(tuple(options.exts)):
             ''' Perform processing on this file... '''
-            logger.debug('process file: ' + f)
+            logger.debug('Process file: %s', f)
+            
+            for recordtype in mappings:
+                FileHandler.str_to_class(mappings[recordtype]['module'], mappings[recordtype]['moduleName']).process(f, mappings[recordtype])
 
 def shutdown_handler(signum, frame):
     type = 'unknown'
@@ -100,7 +114,7 @@ def shutdown_handler(signum, frame):
     elif signum == signal.SIGTERM:
         type = 'terminate'
     
-    logging.critical(type + ' signal received!  Shutting down!')
+    logging.critical('%s signal received!  Shutting down!', type)
     
     #perform nice shutdown
     # close connection to Fedora and the like
