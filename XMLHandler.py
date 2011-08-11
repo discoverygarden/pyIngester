@@ -50,16 +50,17 @@ class XMLHandler(FileHandler):
             for item in xml.findall(settings['pattern']):
                 try:
                     theClass = XMLHandler.str_to_class(settings['class'], settings['className'])
-                    toProcess = theClass(item)
+                    toProcess = theClass(file_path=f, element=item)
                 except KeyError as e:
-                    logger.debug('Bad key: %s...  Object builder of this type' +
-                        ' probably doesn\'t exist yet')
+                    #logger.debug('Bad key: %s...  Object builder of this type' +
+                    #    ' probably doesn\'t exist yet')
+                    pass
                 except TypeError as e:
                     pass
                     #logger.error('%s', settings)
                     #logger.error('%s (this type probably doesn\'t exist yet)', e)
                 else:
-                    toProcess.process(logger)
+                    toProcess.process()
                     del toProcess
                         
         except etree.ParseError:

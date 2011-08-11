@@ -1,0 +1,9 @@
+Fedora Object Builder/Ingester...
+
+Meant to be able to add the base datastreams from a file or directory, using a certain module/configuration.
+Addtional datastream manipulation should be performed via Microservices.
+
+- Currently "dependant" upon Python 2.6 (2.5 might also work, but I was 
+  referring to the 2.6 docs while writing and I don't think I've used anything
+  which appeared after 2.5.  The one issue might be in the "#!/usr/bin/env 
+  python2.6" which is oddly enough due to compatibility reasons.) 

@@ -6,7 +6,7 @@ import os
 import ConfigParser
 import sys
 from FileHandler import FileHandler
-
+from FedoraWrapper import FedoraWrapper
 
 #Defaults...
 CONFIG_FILE_NAME = 'ingest.conf'
@@ -57,8 +57,8 @@ def main():
         configp.read(options.configfile)
             
         section = configp.items('Mappings')
-        mapTo = ['pattern', 'prefix', 'contentmodel', 'modulePackage', 
-        'moduleName', 'classPackage', 'className']
+        mapTo = ['pattern', 'prefix', 'modulePackage', 'moduleName', 
+            'classPackage', 'className']
         mappings = dict()
         for sect, values in section:
             mappings[sect] = dict(zip(mapTo, values.split(',')))
@@ -99,6 +99,7 @@ def main():
         except(os.error):
             logger.warning('Not a directory!: %s', o)
 
+    FedoraWrapper.init()
     for f in options.files:
         if f.endswith(tuple(options.exts)):
             ''' Perform processing on this file... '''
@@ -106,6 +107,7 @@ def main():
             
             for recordtype in mappings:
                 FileHandler.str_to_class(mappings[recordtype]['module'], mappings[recordtype]['moduleName']).process(f, mappings[recordtype])
+    FedoraWrapper.destroy()
 
 def shutdown_handler(signum, frame):
     type = 'unknown'
