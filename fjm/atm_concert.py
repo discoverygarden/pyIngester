@@ -78,7 +78,7 @@ class Concert:
         #Dump the DB XML for the concert element into a tempfile before ingesting.
         #XXX: Had to set the bufsize to 32K, as the default of 4K (based on OS,
         #   really) resulted in the xml being truncated...  Doesn't grow, for 
-        #   some reason
+        #   some reason.
         logger.info('Adding CustomXML datastream')
         with TF.NamedTemporaryFile(bufsize=32*1024,delete=True) as temp:
             etree.ElementTree(self.element).write(file=temp, 
@@ -159,12 +159,16 @@ class Concert:
     
     def __processPerformance(self, p_el):
         logger = logging.getLogger()
-        scoreID = p_el.get('id_obra')
-        p_dict = {'piece': scoreID, 'concert': self.dbid}
+        p_dict = {
+            'piece': p_el.get('id_obra'), 
+            'concert': self.dbid, 
+            'order': p_el.findtext('Posicion')
+        }
+        
         performance = FedoraWrapper.getNextObject(self.prefix, label='Performance of %(piece)s in %(concert)s' % p_dict)
         
         #Add MP3 to performance (if there is one to add)
-        p_mp3 = p_el.find('mp3_Obra')
+        p_mp3 = p_el.findtext('mp3_Obra')
         if p_mp3:
             mp3_path = self.getPath(p_mp3)
             if path.exists(mp3_path):
@@ -175,7 +179,100 @@ class Concert:
         else:
             logger.debug('No performance MP3 for %(concert)s/%(piece)s' % p_dict)
         
+        #Add relationships
+        #1  - To concert
+        #2  - To score
+        #3  - To CM
+        #4  - Position in concert
+        rels_ext = FR.rels_ext(obj=performance, namespaces=NS)
+        rels_ext.addRelationship(
+            FR.rels_predicate(alias='fedora', predicate='isMemberOf'),
+            FR.rels_object(self.concert_obj.pid, FR.rels_object.PID))
+        rels_ext.addRelationship(
+            FR.rels_predicate(alias='fedora-model', predicate='hasModel'),
+            FR.rels_object('atm:performanceCModel', FR.rels_object.PID))
+        rels_ext.addRelationship(
+            FR.rels_predicate(alias='atm_rel', predicate='concertOrder'),
+            FR.rels_object(p_dict['order'], FR.rels_object.LITERAL))
+        #TODO:  Check if score exists and relate to it; otherwise (as is 
+        #   currently happening), create a literal against the database id of 
+        #   the score
+        q_dict = {
+            'uri': NS['fjm-db'],
+            'predicate': 'scoreID',
+            'id': p_dict['piece']
+        }
+        result = performance.client.searchTriples(
+            'select $score from <#ri>' +
+            'where $score <%(uri)s%(predicate)s> \'%(id)s\'' % q_dict
+        )
+        try:
+            uri = result['score']['value']
+            prefix = 'info:fedora/'
+            if uri.startswith(prefix):
+                uri = result[len(prefix):]
+            rels_ext.addRelationship(
+                FR.rels_predicate(alias='atm_rel', predicate='basedOn'),
+                FR.rels_object(, FR.rels_object.PID))
+        except KeyError:
+            rels_ext.addRelationship(
+                FR.rels_predicate(alias='fjm-db', predicate='basedOn'),
+                FR.rels_object(p_dict['piece'], FR.rels_object.LITERAL))
+        rels_ext.update()
         
+        #Create objects for any movements within the piece
+        for m_el in p_el.findall('Movimiento/Movimiento'):
+            m_dict = {
+                'concert': p_dict['concert'],
+                'piece': p_dict['piece']
+                'id': m_el.get('id'),
+                'corder': p_dict['order'],
+                'porder': m_el.get('posicion'),
+                'name': m_el.findtext('NOMBRE'),
+                'MP3': m_el.findtext('mp3_Movimiento')
+            }
+            
+            #Sanity test
+            if m_dict['order']:
+                #Get a Fedora Object for this movement
+                mov = FedoraWrapper.getNextObject(self.prefix, 
+                    label='Movement: %(concert)s/%(piece)s/%(id)s' % m_dict)
+                
+                #Get DC and set the title if we have a name.
+                if m_dict['name']:
+                    mov_dc = mov.get('DC')
+                    mov_dc.set('title', m_dict['name'])
+                    mov_dc.setContent()
+                
+                #Set the three required relations:
+                #1 - To the performance
+                #2 - To the content model
+                #3 - The order this movement occurs within the piece
+                m_rels_ext = FR.rels_ext(obj=mov, namespaces=NS)
+                m_rels_ext.addRelationship(
+                    FR.rels_predicate(alias='fedora', predicate='isMemberOf'),
+                    FR.rels_object(performance.pid, FR.rels_object.PID))
+                m_rels_ext.addRelationship(
+                    FR.rels_predicate(alias='fedora-model', predicate='hasModel'),
+                    FR.rels_object('atm:movementCModel', FR.rels_object.PID))
+                m_rels_ext.addRelationship(
+                    FR.rels_predicate(alias='atm_rel', predicate='pieceOrder'),
+                    FR.rels_object(m_dict['order'], FR.rels_object.LITERAL))
+                m_rels_ext.update()
+                
+                #Add the MP3 (if it exists)
+                if m_dict['MP3']:
+                    mp3_path = self.getPath(m_dict['MP3'])
+                    if path.exists(mp3_path):
+                        FL.update_datastream(obj=mov, dsid='MP3', 
+                            filename=mp3_path, mimeType='audio/mpeg')
+                    else:
+                        logger.warning("MP3 entry for movement %(id)s in performance %(piece)s in %(concert)s" % m_dict)
+                else:
+                    logger.debug('No movement MP3 for %(concert)s/%(piece)s/%(id)s' % m_dict)
+            else:
+                logger.error('Movement %(concert)s/%(piece)s/%(id)s does not have a position!')
+                
     
     def process(self):
         logger = self.logger
@@ -189,60 +286,14 @@ class Concert:
         
         #TODO: Create program object...
         self.__processProgram()
-       
-        
+           
         #TODO: Create performer objects
         #TODO: Create performance objects
-        self.performances = dict()
         for el in self.element.findall('Obras/Obra'):
             self.__processPerformance(el)
-            position = el.findtext('Posicion')
-            perf = dict()
-            
-            perf['id'] = el.get('id_obra')
-            mp3 = el.findtext('mp3_Obra')
-            if mp3 != None:
-                perf['mp3'] = self.getPath(mp3)
-                
-            perfs = dict()
-            perfs['performers'] = dict()
-            for p_el in el.findall('Interpretes/Interprete'):
-                person = dict()
-                try:
-                    person_id = p_el.get('id')
-                    if person_id == None:
-                        raise Exception('Person doesn\'t have a id in %(filename)s at line %(line)i' % {'filename': self.file_name, 'line': p_el.sourceline})
-                    
-                    group = p_el.get('id_groupo')
-                    if group != None:
-                        person['group'] = group
-                        
-                    insts = set()
-                    for inst_el in p_el.findall('Instrumentos/Instrumento'):
-                        inst = inst_el.get('id')
-                        if inst != None: insts.add(inst)
-                    if insts: 
-                        person['insts'] = insts
-                    else:
-                        raise Exception('No instrument in %(filename)s at line %(line)i' % 
-                            {"filename": self.file_name, "line": inst_el.sourceline})
-                except Exception, e:
-                    logger.warning('%s', e)
-                else:
-                    perfs['performers'][person_id] = person
-                    
-            perf['movements'] = dict()
-            for mov_el in el.findall('Movimientos/Movimiento'):
-                mov = dict()
-                mov['position'] = mov_el.get('posicion')
-                mov['id'] = mov_el.get('id')
-                mov['title'] = mov_el.findtext('NOMBRE')
-                mov_mp3 = mov_el.findtext('mp3_Movimiento')
-                if mov_mp3 != None:
-                    mov['mp3'] = self.getPath(mov_mp3)
-                perf['movements'][mov['position']] = mov
-            self.performances[position] = perf
-        
-        logger.debug('Performances: %s', self.performances)
+
         logger.info('Done ingesting: %s', self.dbid)
+        
+def __init__():
+    pass
 

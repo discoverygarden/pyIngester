@@ -57,17 +57,22 @@ def main():
         configp.read(options.configfile)
             
         section = configp.items('Mappings')
-        mapTo = ['pattern', 'prefix', 'modulePackage', 'moduleName', 
-            'classPackage', 'className']
+        #TODO (minor: naming):  Change "module" to "handler" or similar...
+        mapTo = ['pattern', 'prefix', 'modulePkg', 'moduleName', 'classPkg', 'className']
         mappings = dict()
         for sect, values in section:
             mappings[sect] = dict(zip(mapTo, values.split(',')))
+            logger.debug("%s", mappings[sect])
             try:
-                mappings[sect]['module'] = __import__(mappings[sect]['modulePackage'])
+                __import__(mappings[sect]['modulePkg'])
+                mappings[sect]['module'] = getattr(sys.modules[mappings[sect]['modulePkg']],
+                    mappings[sect]['moduleName'])
             except ImportError as e:
                 logger.error(e)
             try:
-                mappings[sect]['class'] = __import__(mappings[sect]['classPackage'])
+                __import__(mappings[sect]['classPkg'])
+                mappings[sect]['class'] = getattr(sys.modules[mappings[sect]['classPkg']],
+                    mappings[sect]['className'])
             except ImportError as e:
                 logger.error(e)
             
@@ -106,7 +111,7 @@ def main():
             logger.debug('Process file: %s', f)
             
             for recordtype in mappings:
-                FileHandler.str_to_class(mappings[recordtype]['module'], mappings[recordtype]['moduleName']).process(f, mappings[recordtype])
+                mappings[recordtype]['module'].process(f, mappings[recordtype])
     FedoraWrapper.destroy()
 
 def shutdown_handler(signum, frame):

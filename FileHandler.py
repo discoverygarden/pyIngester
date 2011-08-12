@@ -12,7 +12,7 @@ class FileHandler:
         try:
             identifier = getattr(module, field)
         except AttributeError:
-            raise NameError("%s doesn't exist." % field)
+            raise NameError("%s doesn't exist in %s" % (field, module))
         else:
             if isinstance(identifier, (types.ClassType, types.TypeType)):
                 return identifier

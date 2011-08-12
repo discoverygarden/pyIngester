@@ -49,8 +49,7 @@ class XMLHandler(FileHandler):
             logger.info('Processing %s with pattern %s', f, settings['pattern'])
             for item in xml.findall(settings['pattern']):
                 try:
-                    theClass = XMLHandler.str_to_class(settings['class'], settings['className'])
-                    toProcess = theClass(file_path=f, element=item)
+                    toProcess = settings['class'](file_path=f, element=item)
                 except KeyError as e:
                     #logger.debug('Bad key: %s...  Object builder of this type' +
                     #    ' probably doesn\'t exist yet')
