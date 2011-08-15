@@ -54,10 +54,10 @@ class XMLHandler(FileHandler):
                     #logger.debug('Bad key: %s...  Object builder of this type' +
                     #    ' probably doesn\'t exist yet')
                     pass
-                except TypeError as e:
-                    pass
-                    #logger.error('%s', settings)
-                    #logger.error('%s (this type probably doesn\'t exist yet)', e)
+                #except TypeError as e:
+                #    logger.error('%s', settings)
+                #    logger.error('%s (this type probably doesn\'t exist yet)', e)
+                #    pass
                 else:
                     toProcess.process()
                     del toProcess

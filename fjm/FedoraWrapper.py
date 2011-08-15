@@ -39,3 +39,33 @@ class FedoraWrapper:
         #Create the object--initially inactive
         return FedoraWrapper.client.createObject(pid, label=unicode(label), state=u'I')
 
+    @staticmethod
+    def getPid(uri='fedora:', predicate=None, obj=None, default=None):
+        if predicate:
+            query = 'select $obj from <#ri>\
+                    where $obj <%(uri)s%(predicate)s> %(obj)s' % {
+                        'uri': uri, 
+                        'predicate': predicate, 
+                        'obj': obj
+                    }
+            print query
+            try:
+                pid = ''
+                for result in FedoraWrapper.client.searchTriples(query=query, lang='itql'):
+                    print '%s' % result
+                    
+                    try:
+                        pid = result['obj']['value']
+                        break
+                    except KeyError as e:
+                        pass
+                if not pid:
+                    raise KeyError('Result not in found?')
+                else:
+                    prefix = 'info:fedora/'
+                    return pid[len(prefix):]
+            except KeyError as e:
+                if not default:
+                    raise e
+                else:
+                    return default

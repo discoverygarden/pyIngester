@@ -1,19 +1,10 @@
 #!/usr/bin/env python2.6
 import logging
 from FedoraWrapper import FedoraWrapper
-import os.path as path
-from ObjectBuilder import ObjectBuilder
 from islandoraUtils import fedoraLib as FL, fedora_relationships as FR
+import os.path as path
+from atm_object import atm_object as ao
 import tempfile as TF
-
-PREFIX="test"
-NS=[
-    FR.rels_namespace('fjm-db', 'http://digital.march.es/db#'),
-    FR.rels_namespace('fjm-titn', 'http://digital.march.es/titn#'),
-    #FR.rels_namespace('atm', 'http://digital.march.es/atmusica/fedora/rdf'),
-    FR.rels_namespace('atm-rel', 'http://www.example.org/dummy#'),
-    FR.rels_namespace('fedora-model', 'info:fedora/fedora-system:def/model#')
-]
 
 try:
     from lxml import etree
@@ -43,31 +34,18 @@ except ImportError:
                     loging.critical(message)
                     raise ImportError(message)
 
-class Concert:
-    def __init__(self, file_path, element, prefix=PREFIX):
-        self.logger = logging.getLogger('ingest.XMLHandler.atm_concert')
-        self.logger.debug('Start')
+class Concert(ao):
+    def __init__(self, file_path, element, prefix=ao.PREFIX):
+        super(Concert, self).__init__(file_path, element, prefix, loggerName='ingest.XMLHandler.Concert')
         
         #Sanity test
         self.dbid = element.get('id_concierto')
-        if self.dbid == None:
-            raise Exception('Didn\'t find "id_concierto" attribute in concert ' + 
-                'element!  Continuing to next...')
-        else:
-            self.prefix = prefix
-            self.path = path.dirname(path.abspath(file_path))
-            self.file_name = file_path
-            self.element = element
+        self._sanityTest()
     
-    def getPath(self, filename):
-        if filename and path.isabs(filename):  #Make the path relative...
-            filename = ".%(filename)s" % {'filename': filename} 
-        elif filename:
-            pass
-        else:
-            raise AttributeError('filename is not set')
-            
-        return path.normpath(path.join(self.path, filename))
+    def _sanityTest(self):
+        if self.dbid == None:
+            raise Exception('Didn\'t find "id_concierto" attribute in ' +
+                'concert element!  Continuing to next...')
     
     def __processConcert(self):
         logger = logging.getLogger('ingest.atm_concert.Concert.__processConcert')
@@ -80,7 +58,7 @@ class Concert:
         #   really) resulted in the xml being truncated...  Doesn't grow, for 
         #   some reason.
         logger.info('Adding CustomXML datastream')
-        with TF.NamedTemporaryFile(bufsize=32*1024,delete=True) as temp:
+        with TF.NamedTemporaryFile(bufsize=32*1024, delete=True) as temp:
             etree.ElementTree(self.element).write(file=temp, 
                 pretty_print=True, encoding='utf-8')
             temp.flush()
@@ -109,7 +87,7 @@ class Concert:
             filename=path.join(path.dirname(WAV), self.dbid + '.xml'))
         
         #Add relations to concert object
-        rels_ext = FR.rels_ext(obj=concert, namespaces=NS)
+        rels_ext = FR.rels_ext(obj=concert, namespaces=ao.NS.values())
         rels_ext.addRelationship(
             FR.rels_predicate(alias='fjm-db', predicate='concertID'),
             FR.rels_object(self.dbid, FR.rels_object.LITERAL))
@@ -148,7 +126,7 @@ class Concert:
             mimeType='application/xml')
         
         #Create the RELS-EXT datastream
-        rels_ext = FR.rels_ext(obj=program, namespaces=NS)
+        rels_ext = FR.rels_ext(obj=program, namespaces=ao.NS.values())
         rels_ext.addRelationship(
             FR.rels_predicate(alias='fedora', predicate='isMemberOf'),
             FR.rels_object(self.concert_obj.pid, FR.rels_object.PID))
@@ -184,7 +162,7 @@ class Concert:
         #2  - To score
         #3  - To CM
         #4  - Position in concert
-        rels_ext = FR.rels_ext(obj=performance, namespaces=NS)
+        rels_ext = FR.rels_ext(obj=performance, namespaces=ao.NS.values())
         rels_ext.addRelationship(
             FR.rels_predicate(alias='fedora', predicate='isMemberOf'),
             FR.rels_object(self.concert_obj.pid, FR.rels_object.PID))
@@ -192,39 +170,27 @@ class Concert:
             FR.rels_predicate(alias='fedora-model', predicate='hasModel'),
             FR.rels_object('atm:performanceCModel', FR.rels_object.PID))
         rels_ext.addRelationship(
-            FR.rels_predicate(alias='atm_rel', predicate='concertOrder'),
+            FR.rels_predicate(alias='atm-rel', predicate='concertOrder'),
             FR.rels_object(p_dict['order'], FR.rels_object.LITERAL))
-        #TODO:  Check if score exists and relate to it; otherwise (as is 
-        #   currently happening), create a literal against the database id of 
-        #   the score
-        q_dict = {
-            'uri': NS['fjm-db'],
-            'predicate': 'scoreID',
-            'id': p_dict['piece']
-        }
-        result = performance.client.searchTriples(
-            'select $score from <#ri>' +
-            'where $score <%(uri)s%(predicate)s> \'%(id)s\'' % q_dict
-        )
+        #TODO:  Check if score exists and relate to it; then, 
+        # create a literal against the database id of the score
         try:
-            uri = result['score']['value']
-            prefix = 'info:fedora/'
-            if uri.startswith(prefix):
-                uri = result[len(prefix):]
             rels_ext.addRelationship(
-                FR.rels_predicate(alias='atm_rel', predicate='basedOn'),
-                FR.rels_object(, FR.rels_object.PID))
+                FR.rels_predicate(alias='atm-rel', predicate='basedOn'),
+                FR.rels_object(FedoraWrapper.getPid(uri=ao.NS['fjm-db'].uri, predicate='scoreID', obj="'%s'" % p_dict['piece']), FR.rels_object.PID))
         except KeyError:
-            rels_ext.addRelationship(
-                FR.rels_predicate(alias='fjm-db', predicate='basedOn'),
-                FR.rels_object(p_dict['piece'], FR.rels_object.LITERAL))
+            pass
+        
+        rels_ext.addRelationship(
+            FR.rels_predicate(alias='fjm-db', predicate='basedOn'),
+            FR.rels_object(p_dict['piece'], FR.rels_object.LITERAL))
         rels_ext.update()
         
         #Create objects for any movements within the piece
         for m_el in p_el.findall('Movimiento/Movimiento'):
             m_dict = {
                 'concert': p_dict['concert'],
-                'piece': p_dict['piece']
+                'piece': p_dict['piece'],
                 'id': m_el.get('id'),
                 'corder': p_dict['order'],
                 'porder': m_el.get('posicion'),
@@ -248,7 +214,7 @@ class Concert:
                 #1 - To the performance
                 #2 - To the content model
                 #3 - The order this movement occurs within the piece
-                m_rels_ext = FR.rels_ext(obj=mov, namespaces=NS)
+                m_rels_ext = FR.rels_ext(obj=mov, namespaces=NS.values())
                 m_rels_ext.addRelationship(
                     FR.rels_predicate(alias='fedora', predicate='isMemberOf'),
                     FR.rels_object(performance.pid, FR.rels_object.PID))
