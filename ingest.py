@@ -107,7 +107,7 @@ def main():
     FedoraWrapper.init()
     for f in options.files:
         if f.endswith(tuple(options.exts)):
-            ''' Perform processing on this file... '''
+            #Perform processing on this file
             logger.debug('Process file: %s', f)
             
             for recordtype in mappings:

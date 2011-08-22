@@ -41,24 +41,26 @@ class FedoraWrapper:
 
     @staticmethod
     def getPid(uri='fedora:', predicate=None, obj=None, default=None):
+        '''Select Should fail with a KeyError if a matching object is not found an no default is given'''
+        FedoraWrapper.init()
         if predicate:
-            query = 'select $obj from <#ri>\
-                    where $obj <%(uri)s%(predicate)s> %(obj)s' % {
-                        'uri': uri, 
-                        'predicate': predicate, 
-                        'obj': obj
-                    }
+            query = '\
+select $obj from <#ri> \
+where $obj <%(uri)s%(predicate)s> %(obj)s \
+minus $obj <fedora-model:state> <fedora-model:Deleted>' % {
+                'uri': uri, 
+                'predicate': predicate, 
+                'obj': obj
+            }
             print query
             try:
                 pid = ''
                 for result in FedoraWrapper.client.searchTriples(query=query, lang='itql'):
                     print '%s' % result
                     
-                    try:
+                    if 'obj' in result:
                         pid = result['obj']['value']
                         break
-                    except KeyError as e:
-                        pass
                 if not pid:
                     raise KeyError('Result not in found?')
                 else:
