@@ -1,7 +1,7 @@
 #!/usr/bin/env python2.6
 import logging
 from FedoraWrapper import FedoraWrapper
-from islandoraUtils import fedoraLib as FL, fedora_relationships as FR
+from islandoraUtils import fedoraLib as FL, metadata.fedora_relationships as FR
 import os.path as path
 from atm_object import atm_object as ao
 import tempfile as TF
@@ -45,8 +45,7 @@ class Concert(ao):
     
     def _sanityTest(self):
         if self.dbid == None:
-            raise Exception('Didn\'t find "id_concierto" attribute in ' +
-                'concert element!  Continuing to next...')
+            raise Exception('Didn\'t find id attribute in %(tag)s element on line %(line)s of %(file)s Continuing to next...' % {'tab': self.element.tag,'line': self.element.sourceline, 'file': self.file_path})
     
     def __processConcert(self):
         logger = logging.getLogger('ingest.atm_concert.Concert.__processConcert')

@@ -1,6 +1,6 @@
 
 import logging
-from islandoraUtils import fedoraLib as FL, fedora_relationships as FR
+from islandoraUtils import fedoraLib as FL, metadata.fedora_relationships as FR
 from atm_object import atm_object as ao
 from FedoraWrapper import FedoraWrapper
 import os.path as path

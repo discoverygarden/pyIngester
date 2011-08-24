@@ -1,9 +1,9 @@
 import logging
 import os.path as path
-from islandoraUtils import fedora_relationships as FR
+from islandoraUtils.metadata import fedora_relationships as FR
 
 class atm_object(object):
-    PREFIX="test2"
+    PREFIX="test"
     NS={
         'fjm-db': FR.rels_namespace('fjm-db', 'http://digital.march.es/db#'),
         'fjm-titn': FR.rels_namespace('fjm-titn', 'http://digital.march.es/titn#'),
