@@ -32,7 +32,7 @@ except ImportError:
                     logging.debug("running with ElementTree")
                 except ImportError:
                     message = "Failed to import ElementTree from any known place"
-                    loging.critical(message)
+                    logging.critical(message)
                     raise ImportError(message)
 
 class Concert(ao):

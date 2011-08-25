@@ -28,7 +28,7 @@ except ImportError:
                     logging.debug("running with ElementTree")
                 except ImportError:
                     message = "Failed to import ElementTree from any known place"
-                    loging.critical(message)
+                    logging.critical(message)
                     raise ImportError(message)
 
 class XMLHandler(FileHandler):
@@ -37,11 +37,13 @@ class XMLHandler(FileHandler):
         
     @staticmethod
     def process(f, settings):
-        '''Creates an object of settings['className'] based on matches to 
+        '''
+        Creates an object of settings['className'] based on matches to 
         settings['pattern'] in the provided filename
-        NOTE:  Due to how ElementTree works, the 'root' node is skipped, so in my
-        case, where I'm looking for 'Conciertos/Concierto', I should use the pattern
-        'Concierto' '''
+        NOTE:  Due to how ElementTree works, the 'root' node is 
+        skipped, so in my case, where I'm looking for 
+        'Conciertos/Concierto', I should use the pattern 'Concierto' 
+        '''
         logger = logging.getLogger('ingest.XMLHandler')
         
         try:
@@ -51,17 +53,16 @@ class XMLHandler(FileHandler):
                 try:
                     toProcess = settings['class'](file_path=f, element=item)
                 except KeyError as e:
-                    #logger.debug('Bad key: %s...  Object builder of this type' +
-                    #    ' probably doesn\'t exist yet')
-                    pass
-                #except TypeError as e:
-                #    logger.error('%s', settings)
-                #    logger.error('%s (this type probably doesn\'t exist yet)', e)
+                    logger.debug('Bad key: %s...  Object builder of this type probably doesn\'t exist yet', 'class')
+                #    pass
+                except TypeError as e:
+                    logger.error('%s', settings)
+                    logger.error('%s (this type probably doesn\'t exist yet)', e)
                 #    pass
                 else:
                     toProcess.process()
                     del toProcess
                         
         except etree.ParseError:
-            print 'Error while parsing: ' + f
+            print('Error while parsing: %s' % f)
           

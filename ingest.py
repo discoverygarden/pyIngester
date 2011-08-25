@@ -101,7 +101,7 @@ def main():
                         options.files.append(os.path.join(o, f))
                         logger.debug('Add to \'files\' list: %s', f)
             logger.debug('Done adding files from: %s', o)
-        except(os.error):
+        except os.error:
             logger.warning('Not a directory!: %s', o)
 
     FedoraWrapper.init()
