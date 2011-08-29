@@ -1,12 +1,12 @@
 
 import logging
-from islandoraUtils import metadata.fedora_relationships as FR
+from islandoraUtils.metadata import fedora_relationships as FR
 from atm_object import atm_object as ao
 from FedoraWrapper import FedoraWrapper
 
 class Group(ao):
     def __init__(self, file_path, element, prefix=ao.PREFIX):
-        super(Score, self).__init__(file_path, element, prefix, loggerName='ingest.XMLHandler.atm_group')
+        super(Group, self).__init__(file_path, element, prefix, loggerName='ingest.XMLHandler.atm_group')
         
         self.dbid = element.get('id')
     
@@ -27,17 +27,24 @@ class Group(ao):
                 raise Exception('Something went horribly wrong!  Found a pid, but couldn\'t access it...')
         except KeyError:
             group = FedoraWrapper.getNextObject(self.prefix, label='Group %s' % self.dbid)
-            rels_ext = FR.rels_ext(group, namespaces=ao.NS.values())
-            rels_ext.addRelationship(
+
+        rels_ext = FR.rels_ext(group, namespaces=ao.NS.values())
+        rels = [
+            (
                 FR.rels_predicate(alias='fedora-model', predicate='hasModel'),
-                FR.rels_object('atm:groupCModel', FR.rels_object.PID))
-            rels_ext.addRelationship(
+                FR.rels_object('atm:groupCModel', FR.rels_object.PID)
+            ),
+            (
                 FR.rels_predicate(alias='fjm-db', predicate='groupID'),
-                FR.rels_object(self.dbid, FR.rels_object.LITERAL))
-            rels_ext.update()
-        finally:
-            dc = group['DC']
-            dc['type'] = [unicode('Collection')]
-            dc['title'] = [self.element.findtext('groupo').strip()]
-            dc.setContent()
+                FR.rels_object(self.dbid, FR.rels_object.LITERAL)
+            )
+        ]
+        for rel in rels:
+            FedoraWrapper.addRelationshipWithoutDup(rel, rels_ext=rels_ext)
+        rels_ext.update()
+
+        dc = group['DC']
+        dc['type'] = [unicode('Collection')]
+        dc['title'] = [self.element.findtext('grupo').strip()]
+        dc.setContent()
             

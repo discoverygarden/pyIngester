@@ -9,6 +9,7 @@ from FileHandler import FileHandler
 from FedoraWrapper import FedoraWrapper
 
 #Defaults...
+#FIXME:  Make the config file name be absolute (currently looks in the directory from which this script is executed.)
 CONFIG_FILE_NAME = 'ingest.conf'
 FILE_LIST = []
 SELECTOR = ''

@@ -8,7 +8,7 @@ from tempfile import NamedTemporaryFile
 import fcrepo
 
 class Performer(Person):
-    def __init__(self, file_path, element, prefix=None):
+    def __init__(self, file_path, element, prefix=Person.PREFIX):
         super(Performer, self).__init__(file_path, element, prefix, loggerName='ingest.XMLHandler.atm_performer')
         
         self.dbid = element.get('id')
@@ -51,25 +51,23 @@ class Performer(Person):
                     raise Exception(msg)
             except KeyError:
                 logger.info('Doesn\'t exist: creating a new Fedora Object')
-                self.performer = FedoraWrapper.getNextObject(self.prefix, label='%s' % self.norm_name)
-        #except Exception, e:
-        #    print e
+                self.performer = FedoraWrapper.getNextObject(self.prefix, label='Performer: %s' % self.dbid)
 
         rels_ext = FR.rels_ext(self.performer, namespaces=Performer.NS.values())
-        model = {
-            'pred':  FR.rels_predicate(alias='fedora-model', predicate='hasModel'),
-            'object': FR.rels_object('atm:personCModel', FR.rels_object.PID)
-        }
-        db = {
-            'pred': FR.rels_predicate(alias='fjm-db', predicate='performerID'),
-            'object': FR.rels_object(self.dbid, FR.rels_object.LITERAL)
-        }
+        rels = [
+            (
+                FR.rels_predicate(alias='fedora-model', predicate='hasModel'),
+                FR.rels_object('atm:personCModel', FR.rels_object.PID)
+            ),
+            (
+                FR.rels_predicate(alias='fjm-db', predicate='performerID'),
+                FR.rels_object(self.dbid, FR.rels_object.LITERAL)
+            )
+        ]
         
         #TODO:  It might be nice to generalize this somehow?  (Adding a relationship only if it doesn't already exist...  That is, the predicate and object is the same as any current relationship)
-        if len(rels_ext.getRelationships(predicate=model['pred'], object=model['object'])) == 0:
-            rels_ext.addRelationship(model['pred'], model['object'])
-        if len(rels_ext.getRelationships(predicate=db['pred'], object=db['object'])) == 0:
-            rels_ext.addRelationship(db['pred'], db['object'])
+        for rel in rels:
+            FedoraWrapper.addRelationshipWithoutDup(rel, rels_ext=rels_ext)
         rels_ext.update()
             
         #Yay Pythonic-ness?  Try to get an existing EAC-CPF, or create one if none is found

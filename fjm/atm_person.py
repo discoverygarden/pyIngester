@@ -14,7 +14,7 @@ class Person(ao):
         fl = self.name['forename'].split()
         ll = self.name['surname'].split()
         fl.extend(ll)
-        return " ".join(fl).title()
+        return unicode(" ".join(fl).title())
         
     @staticmethod
     def __people():
@@ -26,7 +26,7 @@ select $obj $name from <#ri> \
 where $obj <dc:title> $name \
 and $obj <fedora-model:hasModel> <fedora:atm:personCModel>', lang='itql', limit='1000000'):
                 Person.__addPerson(result['name']['value'], result['obj']['value'])
-        print Person.PEOPLE
+            print Person.PEOPLE
         return Person.PEOPLE
 
     @staticmethod
