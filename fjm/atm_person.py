@@ -11,7 +11,7 @@ class Person(ao):
         FedoraWrapper.init()
         
     def normalized_name(self):
-        return unicode(Person.normalize_name(self.name['forename'].split(), self.name['surname'].split()))
+        return unicode(Person.normalize_name([self.name['forename'], self.name['surname']]))
         
     @staticmethod
     def __people():

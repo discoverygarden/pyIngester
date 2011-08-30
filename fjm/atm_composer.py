@@ -86,7 +86,10 @@ class Composer(Person):
         eaccpf.add_maintenance_event(type=event_type, time="now", agent_type="machine", agent="atm_composer.py")
         eaccpf.add_XML_source(caption='XML from database dump', xml=self.element)
         eaccpf.add_name_entry(name=self.name)
-        eaccpf.add_bio(bio=self.bio)
+        if len(self.bio) == 0:
+            eaccpf.add_bio(bio=self.bio.text)
+        else:
+            eaccpf.add_bio(bio=self.bio)
         
         #Try to ensure that the image does not exist somehow?
         if self.photo:

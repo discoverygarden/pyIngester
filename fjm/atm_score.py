@@ -47,7 +47,7 @@ class Score(ao):
             rels.append(
                 (
                     FR.rels_predicate(alias='fjm-titn', predicate='score'),
-                    FR.rels_object(self.dbid, FR.rels_object.LITERAL)
+                    FR.rels_object(titn, FR.rels_object.LITERAL)
                 )
             )
         #FIXME:  'Direction' of composer relation...  Should I go from the score to the composer, or (as I think I do in my hand-made objects) from the composer to the score...  Or should I make the relationships go in both directions?
@@ -71,8 +71,14 @@ class Score(ao):
                 FL.update_datastream(obj=score, dsid='PDF', label="Score PDF", filename=fn, mimeType='application/pdf')
             else:
                 logger.error('PDF specified for score %(id)s, but file does not seem to exist!' % {'id': self.dbid})
+                
+            marc = self.getPath(path.join(path.dirname(filename), '%s.xml' % self.dbid))
+            if path.exists(marc):
+                FL.update_datastream(obj=score, dsid='MARCXML', label="MARC XML", filename=marc, mimeType='application/xml')
         else:
             logger.info('No PDF for %s', self.dbid)
+            
+        
         
         dc = score['DC']
         dc['type'] = [unicode('StillImage')]

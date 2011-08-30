@@ -50,8 +50,7 @@ class Concert(ao):
     
     def __processConcert(self):
         logger = logging.getLogger('ingest.atm_concert.Concert.__processConcert')
-        #Get an object (with a new PID)
-        #TODO:  Deduplicate:  Try to get an object with "this" concert first...
+        #Get the/an object
         try:
             pid = FedoraWrapper.getPid(uri=Concert.NS['fjm-db'].uri, predicate='concertID', obj="'%s'" % self.dbid)
             if pid:
@@ -76,8 +75,9 @@ class Concert(ao):
                 logger.error('Error while adding CustomXML!')
         
         #Ingest the WAV (if it exists...)
-        WAV = self.getPath(self.element.findtext('Grabacion/wav'))
+        WAV = self.element.findtext('Grabacion/wav')
         if WAV:
+            WAV = self.getPath(WAV)
             if path.exists(WAV):
                 FL.update_datastream(obj=concert, dsid='WAV', filename=WAV, 
                     label='WAV', mimeType="audio/x-wav")
@@ -87,8 +87,12 @@ class Concert(ao):
             logger.warning('No WAV found at %s!  Skipping...', WAV)
         
         #Ingest the MARCXML...  FIXME: Maybe this might not make sense to attempt, if there's no WAV?
-        FL.update_datastream(obj=concert, dsid='MARCXML', mimeType="application/xml",
-            filename=path.join(path.dirname(WAV), self.dbid + '.xml'))
+        MARC = path.join(path.dirname(WAV), '%s.xml' % self.dbid)
+        if path.exists(MARC):
+            FL.update_datastream(obj=concert, dsid='MARCXML', mimeType="application/xml", filename=MARC)
+            logger.debug('Added %s', MARC)
+        else:
+            logger.debug('Couldn\'t find MARCXML at %s', MARC)
         
         #Add relations to concert object
         rels_ext = FR.rels_ext(obj=concert, namespaces=ao.NS.values())
@@ -108,11 +112,8 @@ class Concert(ao):
             )
         ]
         
-        FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=rels_ext)
-        
         #Write 'out' rels_ext
-        rels_ext.update()
-        
+        FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=rels_ext).update()
         
         desc = self.element.findtext('Descripcion')
         dc = concert['DC']
@@ -196,7 +197,7 @@ class Concert(ao):
         try:
             pid = FedoraWrapper.getPid(tuples=[
                 (Concert.NS['fjm-db'].uri, 'basedOn', "'%s'" % p_dict['piece']), #Not sure if this is really necessary with the other two conditions...
-                ('fedora:', 'isMemberOf', "<fedora:%s>" % self.concert_obj.pid), #To ensure that the performance actually belongs to this concert...
+                ('fedora-rels-ext:', 'isMemberOf', "<fedora:%s>" % self.concert_obj.pid), #To ensure that the performance actually belongs to this concert...
                 (Concert.NS['atm-rel'].uri, 'concertOrder', "'%s'" % p_dict['order']) #To eliminate the confusion if the same piece is played twice in the same concert.
             ])
             if pid:
