@@ -419,7 +419,7 @@ class Concert(ao):
                     ),
                     (
                         FR.rels_predicate(alias='fjm-db', predicate='imageID'),
-                        FR.rels_object(i_el.get('id'), FR.rels_object.LITERAL)
+                        FR.rels_object(el.get('id'), FR.rels_object.LITERAL)
                     ),
                     #Relate the image to the concert as a general image...
                     (
@@ -438,11 +438,8 @@ class Concert(ao):
                         )
                     )
                 
-                
-                FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=i_rels_ext)
-                
-                #Commit the rels_ext
-                i_rels_ext.update()
+                #Update and commit the rels_ext
+                FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=i_rels_ext).update()
                 
                 dc = image['DC']
                 dc['type'] = [unicode('StillImage')]
