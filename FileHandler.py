@@ -9,6 +9,10 @@ class FileHandler:
     
     @staticmethod
     def str_to_class(module, field):
+        '''
+        Acquired from the 'net somewhere...  I feel kinda bad that I don't
+        actually remember the source...  Don't think I really use this, in any case.
+        '''
         try:
             identifier = getattr(module, field)
         except AttributeError:

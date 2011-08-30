@@ -56,7 +56,7 @@ class FedoraWrapper:
                         'obj': i_obj
                     }
                 )
-        else
+        else:
             filter.append('$obj <%(uri)s%(predicate)s> %(obj)s' % {
                     'uri': uri, 
                     'predicate': predicate, 
@@ -89,6 +89,7 @@ minus $obj <fedora-model:state> <fedora-model:Deleted>' % ' and '.join(filter)
                 else:
                     return default
 
+    
     @staticmethod
     def addRelationshipWithoutDup(rel, fedora=None, rels_ext=None):
         '''
@@ -98,7 +99,7 @@ minus $obj <fedora-model:state> <fedora-model:Deleted>' % ' and '.join(filter)
         
         Only one of 'fedora' and 'rels_ext' is required.  If both are given, only rels_ext will be used, whatever differences that might cause.
         
-        FIXME: Should probably get the list of namespaces in a better manner, so as not to require the import of atm_object
+        XXX: Should probably get the list of namespaces in a better manner, so as not to require the import of atm_object
         '''
         if rels_ext:
             pass
@@ -109,3 +110,19 @@ minus $obj <fedora-model:state> <fedora-model:Deleted>' % ' and '.join(filter)
         pred, obj = rel
         if len(rels_ext.getRelationships(predicate=pred, object=obj)) == 0:
             rels_ext.addRelationship(predicate=pred, object=obj)
+            
+        return rels_ext
+
+    @staticmethod
+    def addRelationshipsWithoutDup(rels, fedora=None, rels_ext=None):
+        if rels_ext:
+            pass
+        elif fedora:
+            rels_ext = FR.rels_ext(obj=fedora, namespaces=ao.NS.values())
+        else:
+            raise Exception('Either fedora or rels_ext must be provided!')
+            
+        for rel in rels:
+            FedoraWrapper.addRelationshipWithoutDup(rel, rels_ext=rels_ext)
+            
+        return rels_ext

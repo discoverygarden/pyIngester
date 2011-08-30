@@ -123,8 +123,8 @@ class Composer(Person):
                     FR.rels_object(self.composer.pid, FR.rels_object.PID)
                 )
             ]
-            for rel in rels:
-                FedoraWrapper.addRelationshipWithoutDup(rel, rels_ext=p_rels_ext)
+            
+            FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=p_rels_ext)
 
             p_rels_ext.update()
             

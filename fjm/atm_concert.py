@@ -107,8 +107,9 @@ class Concert(ao):
                 FR.rels_object('atm:concertCModel', FR.rels_object.PID)
             )
         ]
-        for rel in rels:
-            FedoraWrapper.addRelationshipWithoutDup(rel, rels_ext=rels_ext)
+        
+        FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=rels_ext)
+        
         #Write 'out' rels_ext
         rels_ext.update()
         
@@ -195,8 +196,8 @@ class Concert(ao):
         try:
             pid = FedoraWrapper.getPid(tuples=[
                 (Concert.NS['fjm-db'].uri, 'basedOn', "'%s'" % p_dict['piece']), #Not sure if this is really necessary with the other two conditions...
-                ('fedora:', 'isMemberOf', "<fedora:%s>" % self.concert.pid), #To ensure that the performance actually belongs to this concert...
-                ('atm-rel:', 'concertOrder', "'%s'" % p_dict['order']) #To eliminate the confusion if the same piece is played twice in the same concert.
+                ('fedora:', 'isMemberOf', "<fedora:%s>" % self.concert_obj.pid), #To ensure that the performance actually belongs to this concert...
+                (Concert.NS['atm-rel'].uri, 'concertOrder', "'%s'" % p_dict['order']) #To eliminate the confusion if the same piece is played twice in the same concert.
             ])
             if pid:
                 performance = FedoraWrapper.client.getObject(pid)
@@ -239,8 +240,9 @@ class Concert(ao):
                 FR.rels_object(p_dict['piece'], FR.rels_object.LITERAL)
             )
         ]
-        for rel in rels:
-            FedoraWrapper.addRelationshipWithoutDup(rel, rels_ext=rels_ext)
+        
+        FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=rels_ext)
+        
         rels_ext.update()
         
         #Create objects for any movements within the piece
@@ -264,8 +266,9 @@ class Concert(ao):
                     pid = FedoraWrapper.getPid(tuples=[
                         ('fedora:', 'isMemberOf', performance.pid),
                         ('fedora-model:', 'hasModel', 'atm:movementCModel'),
-                        ()])
+                        (Concert.NS['atm-rel'].uri, 'pieceOrder', m_dict['porder'])
                     ])
+                    mov = FedoraWrapper.client.getObject(pid)
                 except KeyError:
                     mov = FedoraWrapper.getNextObject(self.prefix, label='Movement: %(concert)s/%(piece)s/%(id)s' % m_dict)
                 
@@ -295,8 +298,8 @@ class Concert(ao):
                         FR.rels_object(m_dict['order'], FR.rels_object.LITERAL)
                     )
                 ]
-                for rel in m_rels:
-                    FedoraWrapper.addRelationshipWithoutDup(rel, rels_ext=m_rels_ext)
+                
+                FedoraWrapper.addRelationshipsWithoutDup(m_rels, rels_ext=m_rels_ext)
                 m_rels_ext.update()
                 
                 #Add the MP3 (if it exists)
@@ -324,11 +327,6 @@ class Concert(ao):
             perf.update(p_dict)
                 
             if perf['id']:
-                performer = FedoraWrapper.getNextObject(self.prefix, label='Performer: %(concert)s/%(piece)s/%(id)s in group %(group)s' % perf)
-                
-                #Create relationship DS
-                p_rels_ext = FR.rels_ext(performer, namespaces=ao.NS.values())
-                
                 rels = [
                     #Relate performer to CModel
                     (
@@ -346,6 +344,21 @@ class Concert(ao):
                         FR.rels_object(perf['id'], FR.rels_object.LITERAL)
                     )
                 ]
+                
+                try:
+                    t_list = list()
+                    for pred, obj in rels:
+                        if obj.type == FR.rels_object.LITERAL:
+                            t_obj = "'%s'" % obj
+                        else:
+                            t_obj = "<fedora:%s>" % obj
+                        t_list.append(("%s" % Concert.NS[pred.alias].uri, "%s" % pred.predicate, "%s" % t_obj))
+                        
+                    pid = FedoraWrapper.getPid(tuples=t_list)
+                    if pid:
+                        performer = FedoraWrapper.client.getObject(pid)
+                except KeyError:
+                    performer = FedoraWrapper.getNextObject(prefix = self.prefix, label = 'Performer: %(concert)s/%(piece)s/%(id)s in group %(group)s' % perf)
                     
                 #Relate the performer to the listed group (or 'unaffiliated, if none)
                 if perf['group'] != None:
@@ -371,10 +384,7 @@ class Concert(ao):
                         )
                     )
                     
-                for rel in rels:
-                    FedoraWrapper.addRelationshipWithoutDup(rel, rels_ext=p_rels_ext)
-                #commit the changes
-                p_rels_ext.update()
+                FedoraWrapper.addRelationshipsWithoutDup(rels, fedora=performer).update()
             else:
                 logger.error("Performer on line %(line)s of %(file)s does not have an ID!" % perf)
     
@@ -427,8 +437,9 @@ class Concert(ao):
                         )
                     )
                 
-                for rel in rels:
-                    FedoraWrapper.addRelationshipWithoutDup(rel, rels_ext=i_rels_ext)
+                
+                FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=i_rels_ext)
+                
                 #Commit the rels_ext
                 i_rels_ext.update()
                 
@@ -476,8 +487,9 @@ class Concert(ao):
                     )
                 ]
                 
-                for rel in rels:
-                    FedoraWrapper.addRelationshipWithoutDup(rel, rels_ext=c_rels_ext)
+
+                FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=c_rels_ext)
+                
                 c_rels_ext.update()
                 
                 FL.update_datastream(obj=conference, dsid='MP3', filename=self.getPath(e_dict['mp3_path']), mimeType="audio/mpeg")

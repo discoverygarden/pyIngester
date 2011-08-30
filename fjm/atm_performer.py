@@ -65,9 +65,8 @@ class Performer(Person):
             )
         ]
         
-        #TODO:  It might be nice to generalize this somehow?  (Adding a relationship only if it doesn't already exist...  That is, the predicate and object is the same as any current relationship)
-        for rel in rels:
-            FedoraWrapper.addRelationshipWithoutDup(rel, rels_ext=rels_ext)
+        FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=rels_ext)
+        
         rels_ext.update()
             
         #Yay Pythonic-ness?  Try to get an existing EAC-CPF, or create one if none is found

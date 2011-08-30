@@ -30,3 +30,13 @@ class atm_object(object):
             raise AttributeError('filename is not set')
             
         return path.normpath(path.join(self.path, filename))
+        
+    @staticmethod
+    def normalize_name(nameparts):
+        '''
+        Explode each item in the iterable 'nameparts', implode with a single space separating tokens, and apply Title Casing
+        '''
+        name = list()
+        for namepart in nameparts:
+            name.extend(namepart.split())
+        return ' '.join(name).title()
