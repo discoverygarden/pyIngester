@@ -39,9 +39,8 @@ class Group(ao):
                 FR.rels_object(self.dbid, FR.rels_object.LITERAL)
             )
         ]
-        for rel in rels:
-            FedoraWrapper.addRelationshipWithoutDup(rel, rels_ext=rels_ext)
-        rels_ext.update()
+        
+        FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=rels_ext).update()
 
         dc = group['DC']
         dc['type'] = [unicode('Collection')]
