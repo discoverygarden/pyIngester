@@ -126,3 +126,39 @@ minus $obj <fedora-model:state> <fedora-model:Deleted>' % ' and '.join(filter)
             FedoraWrapper.addRelationshipWithoutDup(rel, rels_ext=rels_ext)
             
         return rels_ext
+    
+    @staticmethod
+    def correlateDBEntry(predicate, idpred):
+        '''
+        This function is used to add relations involving PIDs to objects, based on relations to literals which were added during the original ingest.
+        For example, in the original ingest, 'performances' are added with a relation to the score db id 'fjm-db:basedOn', which the scores are have relations to their DB id 'fjm-db:scoreID'.  This function uses a query which matches the two literals, and adds the relation 'atm-rel:basedOn' (note:  same predicate, different namespace) to the performance,  which relates directly to the score whose ID matched.
+        
+        NOTE:  SPARQL is bloody amazing.  That is all...
+            (query description:
+                1.  add prefixes,
+                2.  select the object and subject of the relationship to resolve, based on matching the ID
+                3.  optionally select any already existing relationships
+                4.  keep results where step 3 returned nothing, or those where the selected $sub is not equal to anything found in step 3.
+        TODO (minor): I can see this being a little slow, as it is called fairly often...  Some method to streamline this might be nice, or to call it less frequently?...  Anyway.
+        '''
+        FedoraWrapper.init()
+        for result in FedoraWrapper.client.searchTriples(query='\
+PREFIX atm-rel: <%(atm-rel)s> \
+PREFIX fjm-db: <%(fjm-db)s> \
+SELECT $obj $sub \
+FROM <#ri> \
+WHERE { \
+    $obj fjm-db:%(predicate)s $id . \
+    $sub fjm-db:%(idpred)s $id . \
+    OPTIONAL {$obj atm-rel:%(predicate)s $pid} . \
+    FILTER(!bound($pid) || $sub != $pid) \
+}' % {
+        'fjm-db': ao.NS['fjm-db'].uri,
+        'atm-rel': ao.NS['atm-rel'].uri,
+        'predicate': predicate,
+        'idpred': idpred
+    }, lang='sparql', limit='1000000'):
+            FedoraWrapper.addRelationshipWithoutDup((
+                    FR.rels_predicate(alias='atm-rel', predicate=predicate),
+                    FR.rels_object(result['sub']['value'].rpartition('/')[2], FR.rels_object.PID)
+                ), fedora=FedoraWrapper.client.getObject(result['obj']['value'].rpartition('/')[2])).update()

@@ -60,6 +60,7 @@ class Instrument(ao):
             )
         ]
         FedoraWrapper.addRelationshipsWithoutDup(i_rels, fedora=instrument).update()
+        FedoraWrapper.correlateDBEntry('instrument', 'instrumentID')
     
     @staticmethod
     def __getInstruments():

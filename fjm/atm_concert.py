@@ -2,10 +2,12 @@
 import logging
 from FedoraWrapper import FedoraWrapper
 from islandoraUtils import fedoraLib as FL
-from islandoraUtils.metadata import fedora_relationships as FR
+from islandoraUtils.metadata import fedora_relationships as FR, eaccpf as CPF
 import os.path as path
 from atm_object import atm_object as ao
 import tempfile as TF
+from atm_person import Person
+import fcrepo
 
 #Import ElementTree from somewhere
 try:
@@ -124,10 +126,9 @@ class Concert(ao):
         
         self.concert_obj = concert
         
-    #TODO:  Deal with the bloody authors...  In the two (at least (Related to individual pieces, or the program as a whole)) different forms they are given.
     def __processProgram(self):
         p_el = self.element.find('programa')
-        #Add the PDF to the program object
+        
         filename = self.getPath(p_el.findtext('ruta'))
         
         if len(p_el) != 0:
@@ -139,10 +140,57 @@ class Concert(ao):
                 program = FedoraWrapper.getNextObject(self.prefix, 
                 label='Program for concert %(dbid)s' % {'dbid': self.dbid})
         
+            #Add the PDF to the program object...  Should probably do an "existence" check, but anyway...
             FL.update_datastream(obj=program, dsid='PDF', 
                 filename=filename,
                 mimeType='application/pdf'
             )
+            fores = p_el.findall('NombreAutorNotas')
+            surs = p_el.findall('apellidosAutorNotas')
+            if len(fores) == len(surs):
+                for fore, sur in zip(fores, surs):
+                    normed = self.normalize_name([fore.text, sur.text])
+                    try:
+                        pid = Person._people()[normed]
+                        author = FedoraWrapper.client.getObject(pid)
+                    except KeyError:
+                        author = FedoraWrapper.getNextObject(self.prefix, label="an author")
+                    FedoraWrapper.addRelationshipsWithoutDup([
+                        (
+                            FR.rels_predicate(alias='atm-rel', predicate='authorOf'),
+                            FR.rels_object(program.pid, FR.rels_object.PID)
+                        ),
+                        (
+                            FR.rels_predicate(alias='fedora-model', predicate="hasModel"),
+                            FR.rels_object('atm:personCModel', FR.rels_object.PID)
+                        )
+                    ], fedora=author).update()
+                    
+                    dc = author['DC']
+                    dc['title'] = [normed]
+                    dc.setContent()
+                    
+                    #Yay Pythonic-ness?  Try to get an existing EAC-CPF, or create one if none is found
+                    try:
+                        eaccpf = CPF.EACCPF(author.pid, xml=author['EAC-CPF'].getContent().read())
+                        event_type="modified"
+                    except fcrepo.connection.FedoraConnectionException, e:
+                        if e.httpcode == 404:
+                            eaccpf = CPF.EACCPF(author.pid)
+                            event_type="created"
+                        else:
+                            raise e
+                    eaccpf.add_maintenance_event(type=event_type, time="now", agent_type="machine", agent="atm_concert.py")
+                    a_el = etree.Element('author')
+                    a_el.append(fore)
+                    a_el.append(sur)
+                    eaccpf.add_XML_source(caption='(Slightly modified (Put into an element)) XML from database dump', xml=a_el)
+                    eaccpf.add_name_entry(name={'forename': fore.text, 'surname': sur.text})
+                    
+                    #Use the fcrepo implementation, as we're just passing a string of XML...
+                    author.addDataStream(dsid='EAC-CPF', body='%s' % eaccpf, mimeType=unicode("text/xml"))
+            else:
+                logger.warning('# of program author\'s forenames != # of surnames!')
             
             #Add the MARCXML to the object...
             FL.update_datastream(obj=program, dsid='MARCXML', 
@@ -242,12 +290,12 @@ class Concert(ao):
             )
         ]
         
-        FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=rels_ext)
-        
-        rels_ext.update()
+        #Add relations and commit
+        FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=rels_ext).update()
+        FedoraWrapper.correlateDBEntry('basedOn', 'scoreID')
         
         #Create objects for any movements within the piece
-        for m_el in p_el.findall('Movimiento/Movimiento'):
+        for m_el in p_el.findall('Movimientos/Movimiento'):
             m_dict = {
                 'concert': p_dict['concert'],
                 'piece': p_dict['piece'],
@@ -261,13 +309,13 @@ class Concert(ao):
             }
             
             #Sanity test
-            if m_dict['order']:
+            if m_dict['porder']:
                 #Get a Fedora Object for this movement
                 try:
                     pid = FedoraWrapper.getPid(tuples=[
-                        ('fedora:', 'isMemberOf', performance.pid),
-                        ('fedora-model:', 'hasModel', 'atm:movementCModel'),
-                        (Concert.NS['atm-rel'].uri, 'pieceOrder', m_dict['porder'])
+                        ('fedora-rels-ext:', 'isMemberOf', '<fedora:%s>' % performance.pid),
+                        ('fedora-model:', 'hasModel', '<fedora:atm:movementCModel>'),
+                        (Concert.NS['atm-rel'].uri, 'pieceOrder', "'%s'" % m_dict['porder'])
                     ])
                     mov = FedoraWrapper.client.getObject(pid)
                 except KeyError:
@@ -284,7 +332,7 @@ class Concert(ao):
                 #1 - To the performance
                 #2 - To the content model
                 #3 - The order this movement occurs within the piece
-                m_rels_ext = FR.rels_ext(obj=mov, namespaces=NS.values())
+                m_rels_ext = FR.rels_ext(obj=mov, namespaces=Concert.NS.values())
                 m_rels = [
                     (
                         FR.rels_predicate(alias='fedora', predicate='isMemberOf'),
@@ -296,12 +344,11 @@ class Concert(ao):
                     ),
                     (
                         FR.rels_predicate(alias='atm-rel', predicate='pieceOrder'),
-                        FR.rels_object(m_dict['order'], FR.rels_object.LITERAL)
+                        FR.rels_object(m_dict['porder'], FR.rels_object.LITERAL)
                     )
                 ]
                 
-                FedoraWrapper.addRelationshipsWithoutDup(m_rels, rels_ext=m_rels_ext)
-                m_rels_ext.update()
+                FedoraWrapper.addRelationshipsWithoutDup(m_rels, rels_ext=m_rels_ext).update()
                 
                 #Add the MP3 (if it exists)
                 if m_dict['MP3']:
@@ -378,14 +425,18 @@ class Concert(ao):
                     )
                         
                 for i_el in per_el.findall('Instrumentos/Instrumento'):
+                    inst_id = i_el.get('id')
                     rels.append(
                         (
                             FR.rels_predicate(alias='fjm-db', predicate='instrument'),
-                            FR.rels_object(i_el.get('id'), FR.rels_object.LITERAL)
+                            FR.rels_object(inst_id, FR.rels_object.LITERAL)
                         )
                     )
-                    
+                
                 FedoraWrapper.addRelationshipsWithoutDup(rels, fedora=performer).update()
+                FedoraWrapper.correlateDBEntry('player', 'performerID')
+                FedoraWrapper.correlateDBEntry('group', 'groupID')
+                FedoraWrapper.correlateDBEntry('instrument', 'instrumentID')
             else:
                 logger.error("Performer on line %(line)s of %(file)s does not have an ID!" % perf)
     
@@ -486,9 +537,8 @@ class Concert(ao):
                 ]
                 
 
-                FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=c_rels_ext)
-                
-                c_rels_ext.update()
+                #Add and commit relationships
+                FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=c_rels_ext).update()
                 
                 FL.update_datastream(obj=conference, dsid='MP3', filename=self.getPath(e_dict['mp3_path']), mimeType="audio/mpeg")
                 
@@ -523,7 +573,4 @@ class Concert(ao):
         self.__processConferences(self.element.find('Eventos_Asociados'))
 
         logger.info('Done ingesting: %s', self.dbid)
-        
-def __init__():
-    pass
 

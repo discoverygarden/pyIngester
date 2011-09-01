@@ -38,5 +38,8 @@ class atm_object(object):
         '''
         name = list()
         for namepart in nameparts:
-            name.extend(namepart.split())
+            try:
+                name.extend(namepart.split())
+            except:
+                logging.getLogger('ingest.atm_object.normalize_name').error("Bad object input: %s", namepart)
         return ' '.join(name).title()

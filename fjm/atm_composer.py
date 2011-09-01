@@ -68,11 +68,9 @@ class Composer(Person):
             )
         ]
         
-        #TODO:  It might be nice to generalize this somehow?  (Adding a relationship only if it doesn't already exist...  That is, the predicate and object is the same as any current relationship)
-        for rel in rels:
-            FedoraWrapper.addRelationshipWithoutDup(rel, rels_ext=rels_ext)
-        rels_ext.update()
-            
+        FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=rels_ext).update()
+        FedoraWrapper.correlateDBEntry('composedBy', 'composerID')
+        
         #Yay Pythonic-ness?  Try to get an existing EAC-CPF, or create one if none is found
         try:
             eaccpf = CPF.EACCPF(self.composer.pid, xml=self.composer['EAC-CPF'].getContent().read())
@@ -127,9 +125,9 @@ class Composer(Person):
                 )
             ]
             
-            FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=p_rels_ext)
-
-            p_rels_ext.update()
+            FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=p_rels_ext).update()
+            
+            
             
             
         

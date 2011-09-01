@@ -14,7 +14,7 @@ class Person(ao):
         return unicode(Person.normalize_name([self.name['forename'], self.name['surname']]))
         
     @staticmethod
-    def __people():
+    def _people():
         
         if Person.PEOPLE == None:
             Person.PEOPLE = dict()
@@ -25,15 +25,17 @@ and $obj <fedora-model:hasModel> <fedora:atm:personCModel>', lang='itql', limit=
                 Person.__addPerson(result['name']['value'], result['obj']['value'])
             print Person.PEOPLE
         return Person.PEOPLE
+    __people = _people
 
     @staticmethod
-    def __addPerson(key, value):
+    def _addPerson(key, value):
         fedora = u'info:fedora/'
         if value.startswith(fedora):
             val = value[len(fedora):]
         else:
             val = value
         Person.__people()[key] = val
+    __addPerson = _addPerson
         
     def __setitem__(self, key, value):
         Person.__addPerson(key, value)

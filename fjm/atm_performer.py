@@ -20,7 +20,11 @@ class Performer(Person):
     
     def _sanityTest(self):
         if self.dbid == None:
-            raise Exception('Didn\'t find "id" attribute in %(tag)s element on line %(line)s of %(file)s Continuing to next...' % {'tag': self.element.tag,'line': self.element.sourceline, 'file': self.file_path})
+            raise Exception('Didn\'t find "id" attribute in %(tag)s element on line %(line)s of %(file)s Continuing to next...' % {
+                'tag': self.element.tag,
+                'line': self.element.sourceline,
+                'file': self.file_path
+            })
     
     def process(self):
         logger = self.logger
@@ -65,9 +69,7 @@ class Performer(Person):
             )
         ]
         
-        FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=rels_ext)
-        
-        rels_ext.update()
+        FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=rels_ext).update()
             
         #Yay Pythonic-ness?  Try to get an existing EAC-CPF, or create one if none is found
         try:
@@ -83,9 +85,9 @@ class Performer(Person):
         eaccpf.add_XML_source(caption='XML from database dump', xml=self.element)
         eaccpf.add_name_entry(name=self.name)
         
-        
         #Use the fcrepo implementation, as we're just passing a string of XML...
         self.performer.addDataStream(dsid='EAC-CPF', body='%s' % eaccpf, mimeType=unicode("text/xml"))
+        
         dc = self.performer['DC']
         dc['title'] = [self.norm_name]
         dc.setContent()

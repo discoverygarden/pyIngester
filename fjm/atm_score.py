@@ -60,9 +60,9 @@ class Score(ao):
                 )
             )
             
-        for rel in rels:
-            FedoraWrapper.addRelationshipWithoutDup(rel, rels_ext=rels_ext)
-        rels_ext.update()
+        FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=rels_ext).update()
+        FedoraWrapper.correlateDBEntry('composedBy', 'composerID')
+        FedoraWrapper.correlateDBEntry('basedOn', 'scoreID')
         
         filename = self.element.findtext('Ruta_Partitura')
         if filename:
