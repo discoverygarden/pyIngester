@@ -3,13 +3,33 @@ import os.path as path
 from islandoraUtils.metadata import fedora_relationships as FR
 
 class atm_object(object):
-    PREFIX="test"
+    PREFIX="atm-test"
     NS={
         'fjm-db': FR.rels_namespace('fjm-db', 'http://digital.march.es/db#'),
         'fjm-titn': FR.rels_namespace('fjm-titn', 'http://digital.march.es/titn#'),
         #'atm': FR.rels_namespace('atm', 'http://digital.march.es/atmusica/fedora/rdf'),
         'atm-rel': FR.rels_namespace('atm-rel', 'http://www.example.org/dummy#'),
-        'fedora-model': FR.rels_namespace('fedora-model', 'info:fedora/fedora-system:def/model#')
+        'fedora-model': FR.rels_namespace('fedora-model', 'info:fedora/fedora-system:def/model#'),
+        'atm': FR.rels_namespace('atm', 'fedora:atm:'),
+        'fedora-view': FR.rels_namespace('fedora-view', 'fedora:fedora-system:def/view#')
+    }
+    
+    #atm:{person,concert,program,group}CModel should be active after initial population 
+    RELATIONSHIPS={
+        'atm:performerCModel': [
+            ('atm-rel:player', 'AnY'),
+            ('atm-rel:instrument', 'AnY'),
+            ('atm-rel:group', 'AnY')
+        ],
+        'atm:performanceCModel': [
+            ('atm-rel:basedOn', 'AnY')
+        ],
+        'atm:scoreCModel': [
+            ('atm-rel:composedBy', 'AnY')
+        ],
+        'atm:imageCModel': [
+            ('fedora-view:disseminates', 'fedora:')
+        ]
     }
 
     def __init__(self, file_path, element, prefix=PREFIX, loggerName='ingest.XMLHandler.atm_object'):

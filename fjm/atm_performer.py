@@ -93,3 +93,4 @@ class Performer(Person):
         dc.setContent()
         
         self[self.norm_name] = self.performer.pid
+        self.performer.state = unicode('A')

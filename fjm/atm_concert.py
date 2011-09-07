@@ -39,6 +39,7 @@ except ImportError:
                     raise ImportError(message)
 
 class Concert(ao):
+    CYCLES = None
     def __init__(self, file_path, element, prefix=ao.PREFIX):
         super(Concert, self).__init__(file_path, element, prefix, loggerName='ingest.XMLHandler.Concert')
         
@@ -49,6 +50,25 @@ class Concert(ao):
     def _sanityTest(self):
         if self.dbid == None:
             raise Exception('Didn\'t find id attribute in %(tag)s element on line %(line)s of %(file)s Continuing to next...' % {'tab': self.element.tag,'line': self.element.sourceline, 'file': self.file_path})
+    
+    @staticmethod
+    def __cycles():
+        if Concert.CYCLES == None:
+            Concert.CYCLES = dict()
+            FedoraWrapper.init()
+            for result in FedoraWrapper.client.searchTriples(query='''
+                PREFIX fedora: <info:fedora/>
+                PREFIX fedora-model: <fedora:fedora-system:def/model#>
+                PREFIX atm-ns: <fedora:atm:>
+                PREFIX dc: <http://purl.org/dc/elements/1.1/>
+                SELECT $obj $title FROM <#ri>
+                WHERE {
+                    $obj fedora-model:hasModel atm-ns:concertCycleCModel .
+                    $obj dc:title $title
+                }
+            '''):
+                Concert.CYCLES[result['title']['value']] = result['obj']['value'].rpartition('/')[2]
+        return Concert.CYCLES
     
     def __processConcert(self):
         logger = logging.getLogger('ingest.atm_concert.Concert.__processConcert')
@@ -96,6 +116,27 @@ class Concert(ao):
         else:
             logger.debug('Couldn\'t find MARCXML at %s', MARC)
         
+        cycle_info = {
+            'norm_name': Concert.normalize_name([self.element.findtext('tipo')])
+        }
+        
+        #Create cycle stuff
+        try:
+            pid = Concert.__cycles()[cycle_info['norm_name']]
+            cycle = FedoraWrapper.client.getObject(pid)
+        except KeyError:
+            cycle = FedoraWrapper.getNextObject(prefix=self.prefix, label='Cycle %s' % (len(Concert.__cycles()) + 1))
+            Concert.__cycles()[cycle_info['norm_name']] = cycle.pid
+            cycle['DC']['title'] = [cycle_info['norm_name']]
+            cycle['DC'].setContent()
+        FedoraWrapper.addRelationshipsWithoutDup(rels=[
+            (
+                FR.rels_predicate(alias='fedora-model', predicate='hasModel'),
+                FR.rels_object('atm:concertCycleCModel', FR.rels_object.PID)
+            )
+        ], fedora=cycle).update()
+        
+        
         #Add relations to concert object
         rels_ext = FR.rels_ext(obj=concert, namespaces=ao.NS.values())
         rels = [
@@ -107,6 +148,10 @@ class Concert(ao):
             (
                 FR.rels_predicate(alias='fedora', predicate='isMemberOfCollection'),
                 FR.rels_object('atm:concertCollection', FR.rels_object.PID)
+            ),
+            (
+                FR.rels_predicate(alias='fedora', predicate='isMemberOf'),
+                FR.rels_object(cycle.pid, FR.rels_object.PID)
             ),
             (
                 FR.rels_predicate(alias='fedora-model', predicate='hasModel'),
@@ -122,9 +167,11 @@ class Concert(ao):
         dc['type'] = [unicode('Event')]
         if desc:
             dc['description'] = [unicode(desc)]
+        dc['title'] = [unicode(Concert.normalize_name([self.element.findtext('titulo')]))]
         dc.setContent()
         
         self.concert_obj = concert
+        concert.state = unicode('A')
         
     def __processProgram(self):
         p_el = self.element.find('programa')
@@ -189,6 +236,7 @@ class Concert(ao):
                     
                     #Use the fcrepo implementation, as we're just passing a string of XML...
                     author.addDataStream(dsid='EAC-CPF', body='%s' % eaccpf, mimeType=unicode("text/xml"))
+                    author.state = unicode('A')
             else:
                 logger.warning('# of program author\'s forenames != # of surnames!')
             
@@ -232,6 +280,7 @@ class Concert(ao):
             dc = program['DC']
             dc['type'] = [unicode('Text')]
             dc.setContent()
+            program.state = unicode('A')
     
     def __processPerformance(self, p_el):
         logger = logging.getLogger('ingest.atm_concert.Concert.__processPerformance')
@@ -498,6 +547,7 @@ class Concert(ao):
                 if i_dict['description'] and 'description' not in dc:
                     dc['description'] = [unicode('%(description)s' % i_dict)]
                 dc.setContent()
+                image.state = unicode('A')
             else:
                 logger.warning('No ID or invalid path for image at line: %(line)s' % i_dict)
                 break
@@ -547,6 +597,7 @@ class Concert(ao):
                 dc['description'] = [unicode(e_dict['description'])]
                 dc['subject'] = [unicode(e_dict['type'])]
                 dc.setContent()
+                conference.state = unicode('A')
                 
                     
     def process(self):

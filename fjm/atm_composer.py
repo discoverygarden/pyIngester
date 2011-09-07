@@ -138,3 +138,4 @@ class Composer(Person):
         dc.setContent()
         
         self[self.norm_name] = self.composer.pid
+        self.composer.state = unicode('A')

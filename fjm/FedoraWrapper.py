@@ -39,7 +39,8 @@ class FedoraWrapper:
         FedoraWrapper.init()
         pid = FedoraWrapper.client.getNextPID(unicode(prefix))
         #Create the object--initially inactive
-        return FedoraWrapper.client.createObject(pid, label=unicode(label), state=u'I')
+        #FIXME (major):  Make objects be created as 'Inactive'...  Bloody timelines.
+        return FedoraWrapper.client.createObject(pid, label=unicode(label), state=u'A')
 
     @staticmethod
     def getPid(uri='fedora:', predicate=None, obj=None, tuples=None, default=None):
@@ -138,7 +139,7 @@ minus $obj <fedora-model:state> <fedora-model:Deleted>' % ' and '.join(filter)
                 1.  add prefixes,
                 2.  select the object and subject of the relationship to resolve, based on matching the ID
                 3.  optionally select any already existing relationships
-                4.  keep results where step 3 returned nothing, or those where the selected $sub is not equal to anything found in step 3.
+                4.  keep results where step 3 returned nothing, or those where the selected $sub is not equal to anything found in step 3.)
         TODO (minor): I can see this being a little slow, as it is called fairly often...  Some method to streamline this might be nice, or to call it less frequently?...  Anyway.
         '''
         FedoraWrapper.init()

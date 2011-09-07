@@ -36,6 +36,7 @@ class Instrument(ao):
             FedoraWrapper.addRelationshipsWithoutDup(c_rels, fedora=instrumentClass).update()
             instrumentClass['DC']['title'] = [self.instrumentClass]
             instrumentClass['DC'].setContent()
+        instrumentClass.state = unicode('A')
             
         try:
             pid = Instrument.__getInstruments()[self.instrumentName]
@@ -61,6 +62,7 @@ class Instrument(ao):
         ]
         FedoraWrapper.addRelationshipsWithoutDup(i_rels, fedora=instrument).update()
         FedoraWrapper.correlateDBEntry('instrument', 'instrumentID')
+        instrument.state = unicode('A')
     
     @staticmethod
     def __getInstruments():

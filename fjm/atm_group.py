@@ -46,4 +46,5 @@ class Group(ao):
         dc['type'] = [unicode('Collection')]
         dc['title'] = [self.element.findtext('grupo').strip()]
         dc.setContent()
+        group.state = unicode('A')
             
