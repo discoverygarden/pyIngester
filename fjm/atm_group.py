@@ -46,5 +46,7 @@ class Group(ao):
         dc['type'] = [unicode('Collection')]
         dc['title'] = [self.element.findtext('grupo').strip()]
         dc.setContent()
+        
+        FedoraWrapper.correlateDBEntry('group', 'groupID')
         group.state = unicode('A')
             

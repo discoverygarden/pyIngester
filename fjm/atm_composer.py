@@ -126,10 +126,6 @@ class Composer(Person):
             ]
             
             FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=p_rels_ext).update()
-            
-            
-            
-            
         
         #Use the fcrepo implementation, as we're just passing a string of XML...
         self.composer.addDataStream(dsid='EAC-CPF', body='%s' % eaccpf, mimeType=unicode("text/xml"))

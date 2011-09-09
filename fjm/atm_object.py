@@ -11,7 +11,8 @@ class atm_object(object):
         'atm-rel': FR.rels_namespace('atm-rel', 'http://www.example.org/dummy#'),
         'fedora-model': FR.rels_namespace('fedora-model', 'info:fedora/fedora-system:def/model#'),
         'atm': FR.rels_namespace('atm', 'fedora:atm:'),
-        'fedora-view': FR.rels_namespace('fedora-view', 'fedora:fedora-system:def/view#')
+        'fedora-view': FR.rels_namespace('fedora-view', 'info:fedora/fedora-system:def/view#'),
+        'fedora-rels-ext': FR.rels_namespace('fedora-rels-ext', 'info:fedora/fedora-system:def/relations-external#')
     }
     
     #atm:{person,concert,program,group}CModel should be active after initial population 

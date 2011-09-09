@@ -146,11 +146,11 @@ class Concert(ao):
                 FR.rels_object(self.dbid, FR.rels_object.LITERAL)
             ),
             (
-                FR.rels_predicate(alias='fedora', predicate='isMemberOfCollection'),
+                FR.rels_predicate(alias='fedora-rels-ext', predicate='isMemberOfCollection'),
                 FR.rels_object('atm:concertCollection', FR.rels_object.PID)
             ),
             (
-                FR.rels_predicate(alias='fedora', predicate='isMemberOf'),
+                FR.rels_predicate(alias='fedora-rels-ext', predicate='isMemberOf'),
                 FR.rels_object(cycle.pid, FR.rels_object.PID)
             ),
             (
@@ -249,7 +249,7 @@ class Concert(ao):
             rels_ext = FR.rels_ext(obj=program, namespaces=ao.NS.values())
             rels = [
                 (
-                    FR.rels_predicate(alias='fedora', predicate='isMemberOf'),
+                    FR.rels_predicate(alias='fedora-rels-ext', predicate='isMemberOf'),
                     FR.rels_object(self.concert_obj.pid, FR.rels_object.PID)
                 ),
                 (
@@ -322,7 +322,7 @@ class Concert(ao):
         rels_ext = FR.rels_ext(obj=performance, namespaces=ao.NS.values())
         rels = [
             (
-                FR.rels_predicate(alias='fedora', predicate='isMemberOf'),
+                FR.rels_predicate(alias='fedora-rels-ext', predicate='isMemberOf'),
                 FR.rels_object(self.concert_obj.pid, FR.rels_object.PID)
             ),
             (
@@ -384,7 +384,7 @@ class Concert(ao):
                 m_rels_ext = FR.rels_ext(obj=mov, namespaces=Concert.NS.values())
                 m_rels = [
                     (
-                        FR.rels_predicate(alias='fedora', predicate='isMemberOf'),
+                        FR.rels_predicate(alias='fedora-rels-ext', predicate='isMemberOf'),
                         FR.rels_object(performance.pid, FR.rels_object.PID)
                     ),
                     (
@@ -552,28 +552,30 @@ class Concert(ao):
                 logger.warning('No ID or invalid path for image at line: %(line)s' % i_dict)
                 break
     
-    def __processConferences(self, cEl):
-        for el in self.element.findall('Evento_Asociado'):
+    def __processConferences(self):
+        logger = logging.getLogger('ingest.atm_concert.__processConferences')
+        for el in self.element.findall('Eventos_Asociados/Evento_Asociado'):
             e_dict = {
                 'id': el.get('id'),
                 'type': el.findtext('Tipo'),
                 'description': el.findtext('descripcion'),
                 'mp3_path': el.findtext('ruta'),
-                'concert': self.dbid
+                'concert': self.dbid,
+                'line': el.sourceline
             }
             
             if e_dict['id']:
                 try:
-                    pid = FedoraWrapper.getPid(uri=Concert.NS['fjm-db'].uri, predicate="lectureID", object="'%(id)s'" % e_dict)
+                    pid = FedoraWrapper.getPid(uri=Concert.NS['fjm-db'].uri, predicate="lectureID", obj="'%(id)s'" % e_dict)
                     conference = FedoraWrapper.client.getObject(pid)
                 except KeyError:
-                    conference = FedoraWrapper.getNextObject(self.prefix, label="%(type)s %(id)s in %(concert)s" % e_dict)
+                    conference = FedoraWrapper.getNextObject(self.prefix, label="Conference %(id)s in %(concert)s" % e_dict)
                     
                 c_rels_ext = FR.rels_ext(obj=conference, namespaces=ao.NS.values())
                 
                 rels = [
                     (
-                        FR.rels_predicate(alias='fedora', predicate='isMemberOf'),
+                        FR.rels_predicate(alias='fedora-rels-ext', predicate='isMemberOf'),
                         FR.rels_object(self.concert_obj.pid, FR.rels_object.PID)
                     ),
                     (
@@ -590,7 +592,14 @@ class Concert(ao):
                 #Add and commit relationships
                 FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=c_rels_ext).update()
                 
-                FL.update_datastream(obj=conference, dsid='MP3', filename=self.getPath(e_dict['mp3_path']), mimeType="audio/mpeg")
+                if e_dict['mp3_path']:
+                    mp3_path = self.getPath(e_dict['mp3_path'])
+                    if path.exists(mp3_path):
+                        FL.update_datastream(obj=conference, dsid='MP3', filename=mp3_path, mimeType="audio/mpeg")
+                    else:
+                        logger.error('MP3 specified (%(mp3_path)s), but doesn\'t exist for id %(id)s on line %(line)s' % e_dict)
+                else:
+                    logger.warning('No MP3 indicated for id %(id)s on line %(line)s' % e_dict)
                 
                 dc = conference['DC']
                 dc['type'] = [unicode('Sound')]
@@ -610,18 +619,18 @@ class Concert(ao):
         self.__processConcert()
         
         #Create program object...
-        self.__processProgram()
+        #self.__processProgram()
            
         #Create performance(s) and performer(s)
-        for el in self.element.findall('Obras/Obra'):
-            self.__processPerformance(el)
+        #for el in self.element.findall('Obras/Obra'):
+        #    self.__processPerformance(el)
             #pass
             
         #Add photos
-        self.__processImages(self.element.find('Fotos'))
+        #self.__processImages(self.element.find('Fotos'))
            
         #Add lectures and stuff...
-        self.__processConferences(self.element.find('Eventos_Asociados'))
+        self.__processConferences()
 
         logger.info('Done ingesting: %s', self.dbid)
 

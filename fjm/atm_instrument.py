@@ -56,7 +56,7 @@ class Instrument(ao):
                 FR.rels_object('atm:instrumentCModel', FR.rels_object.PID)
             ),
             (
-                FR.rels_predicate(alias='fedora', predicate='isMemberOf'),
+                FR.rels_predicate(alias='fedora-rels-ext', predicate='isMemberOf'),
                 FR.rels_object(instrumentClass.pid, FR.rels_object.PID)
             )
         ]

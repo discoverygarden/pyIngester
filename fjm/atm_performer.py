@@ -35,7 +35,7 @@ class Performer(Person):
             pid = self[self.norm_name]
             logger.info('Found %(pid)s' % {'pid': pid})
             if pid:
-                logger.warning('%(name)s already exists as pid %(pid)s! Overwriting DC DS!' % {'name': self.norm_name, 'pid': pid})
+                logger.warning('%(name)s already exists as pid %(pid)s!' % {'name': self.norm_name, 'pid': pid})
                 self.performer = FedoraWrapper.client.getObject(pid)
             else:
                 msg = 'Something went horribly wrong!  Found a pid (%(pid)s), but couldn\'t access it...' % {'pid': pid}
@@ -56,6 +56,10 @@ class Performer(Person):
             except KeyError:
                 logger.info('Doesn\'t exist: creating a new Fedora Object')
                 self.performer = FedoraWrapper.getNextObject(self.prefix, label='Performer: %s' % self.dbid)
+                
+            dc = self.performer['DC']
+            dc['title'] = [self.norm_name]
+            dc.setContent()
 
         rels_ext = FR.rels_ext(self.performer, namespaces=Performer.NS.values())
         rels = [
@@ -88,9 +92,7 @@ class Performer(Person):
         #Use the fcrepo implementation, as we're just passing a string of XML...
         self.performer.addDataStream(dsid='EAC-CPF', body='%s' % eaccpf, mimeType=unicode("text/xml"))
         
-        dc = self.performer['DC']
-        dc['title'] = [self.norm_name]
-        dc.setContent()
-        
         self[self.norm_name] = self.performer.pid
         self.performer.state = unicode('A')
+
+        FedoraWrapper.correlateDBEntry('player', 'performerID')
