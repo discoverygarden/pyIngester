@@ -8,6 +8,7 @@ from atm_object import atm_object as ao
 import tempfile as TF
 from atm_person import Person
 import fcrepo
+import time
 
 #Import ElementTree from somewhere
 try:
@@ -192,31 +193,55 @@ class Concert(ao):
                 filename=filename,
                 mimeType='application/pdf'
             )
-            fores = p_el.findall('NombreAutorNotas')
-            surs = p_el.findall('apellidosAutorNotas')
-            if len(fores) == len(surs):
-                for fore, sur in zip(fores, surs):
-                    normed = self.normalize_name([fore.text, sur.text])
-                    try:
-                        pid = Person._people()[normed]
-                        author = FedoraWrapper.client.getObject(pid)
-                    except KeyError:
-                        author = FedoraWrapper.getNextObject(self.prefix, label="an author")
-                    FedoraWrapper.addRelationshipsWithoutDup([
-                        (
-                            FR.rels_predicate(alias='atm-rel', predicate='authorOf'),
-                            FR.rels_object(program.pid, FR.rels_object.PID)
-                        ),
-                        (
-                            FR.rels_predicate(alias='fedora-model', predicate="hasModel"),
-                            FR.rels_object('atm:personCModel', FR.rels_object.PID)
-                        )
-                    ], fedora=author).update()
-                    
+            
+            for a_el in p_el.findall('AutorNotas[@id]'):
+                fore, sur = a_el.findtext('Nombre'), a_el.findtext('Apellidos')
+                normed = self.normalize_name([fore, sur])
+                try:
+                    pid = Person._people()[normed]
+                    author = FedoraWrapper.client.getObject(pid)
+                except KeyError:
+                    author = FedoraWrapper.getNextObject(self.prefix, label="an author")
                     dc = author['DC']
                     dc['title'] = [normed]
                     dc.setContent()
-                    
+                
+                FedoraWrapper.addRelationshipsWithoutDup([
+                    (
+                        FR.rels_predicate(alias='atm-rel', predicate='authorOf'),
+                        FR.rels_object(program.pid, FR.rels_object.PID)
+                    ),
+                    (
+                        FR.rels_predicate(alias='fedora-model', predicate="hasModel"),
+                        FR.rels_object('atm:personCModel', FR.rels_object.PID)
+                    )
+                ], fedora=author).update()
+                
+                #Yay Pythonic-ness?  Try to get an existing EAC-CPF, or create one if none is found
+                try:
+                    eaccpf = CPF.EACCPF(author.pid, xml=author['EAC-CPF'].getContent().read())
+                    event_type="modified"
+                except fcrepo.connection.FedoraConnectionException, e:
+                    if e.httpcode == 404:
+                        eaccpf = CPF.EACCPF(author.pid)
+                        event_type="created"
+                    else:
+                        raise e
+                eaccpf.add_maintenance_event(type=event_type, time="now", agent_type="machine", agent="atm_concert.py")
+                eaccpf.add_XML_source(caption='(Slightly modified (Put into an element)) XML from database dump', xml=a_el)
+                eaccpf.add_name_entry(name={'forename': fore, 'surname': sur})
+                
+                #Use the fcrepo implementation, as we're just passing a string of XML...
+                author.addDataStream(dsid='EAC-CPF', body='%s' % eaccpf, mimeType=unicode("text/xml"))
+                author.state = unicode('A')
+                
+            #XXX: This is seeming particularly less-than-elegant at the moment, creating a 'placeholder' object for composer notes...  Anyway.
+            if len(p_el.findall('Notas_Obras/Obra[@id]')) > 0:
+                try:
+                    pid = '%s:composerText' % self.prefix
+                    author = FedoraWrapper.client.getObject(pid)
+                except:
+                    author = FedoraWrapper.client.createObject(pid, label=unicode('Composer Text'))
                     #Yay Pythonic-ness?  Try to get an existing EAC-CPF, or create one if none is found
                     try:
                         eaccpf = CPF.EACCPF(author.pid, xml=author['EAC-CPF'].getContent().read())
@@ -228,18 +253,21 @@ class Concert(ao):
                         else:
                             raise e
                     eaccpf.add_maintenance_event(type=event_type, time="now", agent_type="machine", agent="atm_concert.py")
-                    a_el = etree.Element('author')
-                    a_el.append(fore)
-                    a_el.append(sur)
-                    eaccpf.add_XML_source(caption='(Slightly modified (Put into an element)) XML from database dump', xml=a_el)
-                    eaccpf.add_name_entry(name={'forename': fore.text, 'surname': sur.text})
+                    eaccpf.add_name_entry(name={'forename': 'Texto', 'surname': 'Compositore'})
                     
                     #Use the fcrepo implementation, as we're just passing a string of XML...
                     author.addDataStream(dsid='EAC-CPF', body='%s' % eaccpf, mimeType=unicode("text/xml"))
-                    author.state = unicode('A')
-            else:
-                logger.warning('# of program author\'s forenames != # of surnames!')
             
+                FedoraWrapper.addRelationshipsWithoutDup(rels=[
+                    (
+                        FR.rels_predicate(alias='atm-rel', predicate="authorOf"),
+                        FR.rels_object(program.pid, FR.rels_object.PID)
+                    )
+                ], fedora=author).update()
+                
+                
+                author.state = unicode('A')
+                
             #Add the MARCXML to the object...
             FL.update_datastream(obj=program, dsid='MARCXML', 
                 filename=path.join(path.dirname(filename), self.dbid + '.xml'),
@@ -272,9 +300,7 @@ class Concert(ao):
                     )
                 )
                 
-            for rel in rels:
-                FedoraWrapper.addRelationshipWithoutDup(rel, rels_ext=rels_ext)
-            rels_ext.update()
+            FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=rels_ext).update()
             
             #Update DC
             dc = program['DC']
@@ -489,68 +515,93 @@ class Concert(ao):
             else:
                 logger.error("Performer on line %(line)s of %(file)s does not have an ID!" % perf)
     
+    def __processImage(self, el, firstImage):
+        i_dict = {
+            'id': el.get('id', default=None),
+            'path': el.findtext('ruta'),
+            'description': el.findtext('pie'),
+            'line': el.sourceline
+        }
+        if i_dict['id'] and i_dict['path'] and path.exists(self.getPath(i_dict['path'])):
+            #Get or create an new image containing the new object.
+            try:
+                image = FedoraWrapper.client.getObject(FedoraWrapper.getPid(uri=ao.NS['fjm-db'].uri, predicate='imageID', obj="'%(id)s'" % i_dict))
+            except KeyError:
+                image = FedoraWrapper.getNextObject(self.prefix, label='Image: %(id)s' % i_dict)
+                
+            #FIXME:  Detect Mimetype, and create image accordingly?
+            FL.update_datastream(obj=image, dsid="JPG", filename=self.getPath(i_dict['path']), mimeType="image/jpeg")
+                
+            i_rels_ext = FR.rels_ext(obj=image, namespaces=ao.NS.values())
+                
+            rels = [
+                (
+                    FR.rels_predicate(alias='fedora-model', predicate='hasModel'),
+                    FR.rels_object('atm:imageCModel', FR.rels_object.PID)
+                ),
+                (
+                    FR.rels_predicate(alias='fjm-db', predicate='imageID'),
+                    FR.rels_object(el.get('id'), FR.rels_object.LITERAL)
+                ),
+                #Relate the image to the concert as a general image...
+                (
+                    FR.rels_predicate(alias='atm-rel', predicate='isImageOf'),
+                    FR.rels_object(self.concert_obj.pid, FR.rels_object.PID)
+                )
+            ]
+            
+            #Set the first image as the "primary" (Used for thumbnails)
+            if firstImage:
+                rels.append(
+                    (
+                        FR.rels_predicate(alias='atm-rel', predicate='isIconOf'),
+                        FR.rels_object(self.concert_obj.pid, FR.rels_object.PID)
+                    )
+                )
+            
+            #Update and commit the rels_ext
+            FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=i_rels_ext).update()
+            
+            dc = image['DC']
+            dc['type'] = [unicode('StillImage')]
+            #Add a description, based on the 'pie' (if it exists, and there isn't already on for the image...), and don't clobber any existing description...
+            if i_dict['description'] and 'description' not in dc:
+                dc['description'] = [unicode('%(description)s' % i_dict)]
+            dc.setContent()
+            tries = 3
+            while tries > 1:
+                tries -= 1
+                try:
+                    image.state = unicode('A')
+                    break
+                except fcrepo.connection.FedoraConnectionException, e:
+                    if e.httpcode == 409:
+                        time.sleep(1)
+                    else:
+                        raise e
+            return True
+        else:
+            logger.warning('No ID or invalid path for image at line: %(line)s' % i_dict)
+            return False
+    
     #NOTE: Currently ignoring "Foto_principal" element, where it occurs.
     def __processImages(self, iEl):
         logger = logging.getLogger('ingest.atm_concert.Concert.__processImages')
         firstImage = True
-        for el in iEl.findall('Foto'):
-            i_dict = {
-                'id': el.get('id', default=None),
-                'path': el.findtext('ruta'),
-                'description': el.findtext('pie'),
-                'line': el.sourceline
-            }
-            if i_dict['id'] and i_dict['path'] and path.exists(self.getPath(i_dict['path'])):
-                #Get or create an new image containing the new object.
-                try:
-                    image = FedoraWrapper.client.getObject(FedoraWrapper.getPid(uri=ao.NS['fjm-db'].uri, predicate='imageID', obj="'%(id)s'" % i_dict))
-                except KeyError:
-                    image = FedoraWrapper.getNextObject(self.prefix, label='Image: %(id)s' % i_dict)
-                    
-                #FIXME:  Detect Mimetype, and create image accordingly?
-                FL.update_datastream(obj=image, dsid="JPG", filename=self.getPath(i_dict['path']), mimeType="image/jpeg")
-                    
-                i_rels_ext = FR.rels_ext(obj=image, namespaces=ao.NS.values())
-                    
-                rels = [
-                    (
-                        FR.rels_predicate(alias='fedora-model', predicate='hasModel'),
-                        FR.rels_object('atm:imageCModel', FR.rels_object.PID)
-                    ),
-                    (
-                        FR.rels_predicate(alias='fjm-db', predicate='imageID'),
-                        FR.rels_object(el.get('id'), FR.rels_object.LITERAL)
-                    ),
-                    #Relate the image to the concert as a general image...
-                    (
-                        FR.rels_predicate(alias='atm-rel', predicate='isImageOf'),
-                        FR.rels_object(self.concert_obj.pid, FR.rels_object.PID)
-                    )
-                ]
-                
-                #Set the first image as the "primary" (Used for thumbnails)
-                if firstImage:
-                    firstImage = False
-                    rels.append(
-                        (
-                            FR.rels_predicate(alias='atm-rel', predicate='isIconOf'),
-                            FR.rels_object(self.concert_obj.pid, FR.rels_object.PID)
-                        )
-                    )
-                
-                #Update and commit the rels_ext
-                FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=i_rels_ext).update()
-                
-                dc = image['DC']
-                dc['type'] = [unicode('StillImage')]
-                #Add a description, based on the 'pie' (if it exists, and there isn't already on for the image...), and don't clobber any existing description...
-                if i_dict['description'] and 'description' not in dc:
-                    dc['description'] = [unicode('%(description)s' % i_dict)]
-                dc.setContent()
-                image.state = unicode('A')
-            else:
-                logger.warning('No ID or invalid path for image at line: %(line)s' % i_dict)
+         
+        fotos = iEl.findall('Foto')
+        for el in iEl.findall('Foto[@principal="true"]'):
+            fotos.remove(el)
+            if firstImage:
+                firstImage = not(self.__processImage(el, firstImage))
+            if not(firstImage):
                 break
+                
+        for el in fotos:
+            if firstImage:
+                firstImage = not(self.__processImage(el, firstImage))
+            else:
+                self.__processImage(el, firstImage)
     
     def __processConferences(self):
         logger = logging.getLogger('ingest.atm_concert.__processConferences')
@@ -627,10 +678,10 @@ class Concert(ao):
             #pass
             
         #Add photos
-        #self.__processImages(self.element.find('Fotos'))
+        self.__processImages(self.element.find('Fotos'))
            
         #Add lectures and stuff...
-        self.__processConferences()
+        #self.__processConferences()
 
         logger.info('Done ingesting: %s', self.dbid)
 

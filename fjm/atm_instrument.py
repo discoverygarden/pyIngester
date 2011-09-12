@@ -12,21 +12,20 @@ class Instrument(ao):
         
         self.dbid = self.element.get('id')
         self.instrumentName = Instrument.normalize_name([self.element.findtext('nombre')])
+        self.classID = self.element.findtext('id_tipo_instrumento')
         self.instrumentClass = Instrument.normalize_name([self.element.findtext('tipoInstrumento')])
         
     def process(self):
         try:
-            pid = Instrument.__getClasses()[self.instrumentClass]
+            pid = Instrument.__getClasses()[self.classID]
             instrumentClass = FedoraWrapper.client.getObject(pid)
         except KeyError:
-            #XXX: Assigning serial numbers in a somewhat silly manner...  I don't actually like it very much, but it should work.
-            classID = len(Instrument.__getClasses()) + 1 
-            instrumentClass = FedoraWrapper.getNextObject(self.prefix, label='Instrument class %s' % classID)
-            Instrument.__addInstrumentClass(self.instrumentClass, instrumentClass.pid)
+            instrumentClass = FedoraWrapper.getNextObject(self.prefix, label='Instrument class %s' % self.classID)
+            Instrument.__addInstrumentClass(self.classID, instrumentClass.pid)
             c_rels = [
                 (
                     FR.rels_predicate(alias='fjm-db', predicate='instrumentClassID'),
-                    FR.rels_object("%s" % classID, FR.rels_object.LITERAL)
+                    FR.rels_object(self.classID, FR.rels_object.LITERAL)
                 ),
                 (
                     FR.rels_predicate(alias='fedora-model', predicate='hasModel'),
@@ -90,9 +89,14 @@ and $obj <fedora-model:hasModel> <fedora:atm:instrumentCModel>', lang='itql', li
         if Instrument.INSTRUMENT_CLASS == None:
             Instrument.INSTRUMENT_CLASS = dict()
             for result in FedoraWrapper.client.searchTriples(query='\
-select $obj $name from <#ri> \
-where $obj <dc:title> $name \
-and $obj <fedora-model:hasModel> <fedora:atm:instrumentClassCModel>', lang='itql', limit='1000000'):
+PREFIX fjm-db: <http://digital.march.es/db#> \
+PREFIX fedora-model: <info:fedora/fedora-system:def/model#> \
+SELECT $obj $name \
+FROM <#ri> \
+WHERE {\
+$obj fjm-db:instrumentClassID $name . \
+$obj fedora-model:hasModel <info:fedora/atm:instrumentClassCModel> \
+}', lang='sparql', limit='1000000'):
                 Instrument.__addInstrumentClass(result['name']['value'], result['obj']['value'])
             print Instrument.INSTRUMENT_CLASS
         return Instrument.INSTRUMENT_CLASS
