@@ -194,6 +194,23 @@ class Concert(ao):
                 mimeType='application/pdf'
             )
             
+            #Create the RELS-EXT datastream
+            rels_ext = FR.rels_ext(obj=program, namespaces=ao.NS.values())
+            rels = [
+                (
+                    FR.rels_predicate(alias='fedora-rels-ext', predicate='isMemberOf'),
+                    FR.rels_object(self.concert_obj.pid, FR.rels_object.PID)
+                ),
+                (
+                    FR.rels_predicate(alias='fedora-model', predicate='hasModel'),
+                    FR.rels_object('atm:programCModel', FR.rels_object.PID)
+                ),
+                (
+                    FR.rels_predicate(alias='fjm-db', predicate='programConcertID'),
+                    FR.rels_object(self.dbid, FR.rels_object.LITERAL)
+                )
+            ]
+            
             for a_el in p_el.findall('AutorNotas[@id]'):
                 fore, sur = a_el.findtext('Nombre'), a_el.findtext('Apellidos')
                 normed = self.normalize_name([fore, sur])
@@ -205,12 +222,15 @@ class Concert(ao):
                     dc = author['DC']
                     dc['title'] = [normed]
                     dc.setContent()
+                    
+                rels.append(
+                    (
+                        FR.rels_predicate(alias='atm-rel', predicate='authoredBy'),
+                        FR.rels_object(author.pid, FR.rels_object.PID)
+                    )
+                )
                 
                 FedoraWrapper.addRelationshipsWithoutDup([
-                    (
-                        FR.rels_predicate(alias='atm-rel', predicate='authorOf'),
-                        FR.rels_object(program.pid, FR.rels_object.PID)
-                    ),
                     (
                         FR.rels_predicate(alias='fedora-model', predicate="hasModel"),
                         FR.rels_object('atm:personCModel', FR.rels_object.PID)
@@ -219,6 +239,7 @@ class Concert(ao):
                 
                 #Yay Pythonic-ness?  Try to get an existing EAC-CPF, or create one if none is found
                 try:
+                    #No point in updating if there's already one there...  This is really just a check?
                     eaccpf = CPF.EACCPF(author.pid, xml=author['EAC-CPF'].getContent().read())
                     event_type="modified"
                 except fcrepo.connection.FedoraConnectionException, e:
@@ -227,13 +248,13 @@ class Concert(ao):
                         event_type="created"
                     else:
                         raise e
-                eaccpf.add_maintenance_event(type=event_type, time="now", agent_type="machine", agent="atm_concert.py")
-                eaccpf.add_XML_source(caption='(Slightly modified (Put into an element)) XML from database dump', xml=a_el)
-                eaccpf.add_name_entry(name={'forename': fore, 'surname': sur})
+                    eaccpf.add_maintenance_event(type=event_type, time="now", agent_type="machine", agent="atm_concert.py")
+                    eaccpf.add_XML_source(caption='(Slightly modified (Put into an element)) XML from database dump', xml=a_el)
+                    eaccpf.add_name_entry(name={'forename': fore, 'surname': sur})
                 
-                #Use the fcrepo implementation, as we're just passing a string of XML...
-                author.addDataStream(dsid='EAC-CPF', body='%s' % eaccpf, mimeType=unicode("text/xml"))
-                author.state = unicode('A')
+                    #Use the fcrepo implementation, as we're just passing a string of XML...
+                    author.addDataStream(dsid='EAC-CPF', body='%s' % eaccpf, mimeType=unicode("text/xml"))
+                    author.state = unicode('A')
                 
             #XXX: This is seeming particularly less-than-elegant at the moment, creating a 'placeholder' object for composer notes...  Anyway.
             if len(p_el.findall('Notas_Obras/Obra[@id]')) > 0:
@@ -258,13 +279,12 @@ class Concert(ao):
                     #Use the fcrepo implementation, as we're just passing a string of XML...
                     author.addDataStream(dsid='EAC-CPF', body='%s' % eaccpf, mimeType=unicode("text/xml"))
             
-                FedoraWrapper.addRelationshipsWithoutDup(rels=[
+                rels.append(
                     (
-                        FR.rels_predicate(alias='atm-rel', predicate="authorOf"),
-                        FR.rels_object(program.pid, FR.rels_object.PID)
+                        FR.rels_predicate(alias='atm-rel', predicate='authoredBy'),
+                        FR.rels_object(author.pid, FR.rels_object.PID)
                     )
-                ], fedora=author).update()
-                
+                )
                 
                 author.state = unicode('A')
                 
@@ -272,26 +292,9 @@ class Concert(ao):
             FL.update_datastream(obj=program, dsid='MARCXML', 
                 filename=path.join(path.dirname(filename), self.dbid + '.xml'),
                 mimeType='application/xml')
-            
-            #Create the RELS-EXT datastream
-            rels_ext = FR.rels_ext(obj=program, namespaces=ao.NS.values())
-            rels = [
-                (
-                    FR.rels_predicate(alias='fedora-rels-ext', predicate='isMemberOf'),
-                    FR.rels_object(self.concert_obj.pid, FR.rels_object.PID)
-                ),
-                (
-                    FR.rels_predicate(alias='fedora-model', predicate='hasModel'),
-                    FR.rels_object('atm:programCModel', FR.rels_object.PID)
-                ),
-                (
-                    FR.rels_predicate(alias='fjm-db', predicate='programConcertID'),
-                    FR.rels_object(self.dbid, FR.rels_object.LITERAL)
-                )
-            ]
                 
             #Get and add the titn to the RELS-EXT (might this make more sense in DC?...  It'd still end up in the triplestore...)
-            titn = p_el.findtext('titn')
+            titn = p_el.findtext('titn_programa')
             if titn:
                 rels.append(
                     (
@@ -670,18 +673,18 @@ class Concert(ao):
         self.__processConcert()
         
         #Create program object...
-        #self.__processProgram()
+        self.__processProgram()
            
         #Create performance(s) and performer(s)
-        #for el in self.element.findall('Obras/Obra'):
-        #    self.__processPerformance(el)
+        for el in self.element.findall('Obras/Obra'):
+            self.__processPerformance(el)
             #pass
             
         #Add photos
         self.__processImages(self.element.find('Fotos'))
            
         #Add lectures and stuff...
-        #self.__processConferences()
+        self.__processConferences()
 
         logger.info('Done ingesting: %s', self.dbid)
 

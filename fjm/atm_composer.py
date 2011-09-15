@@ -19,6 +19,8 @@ class Composer(Person):
         }
         self.photo = self.element.findtext('foto')
         self.bio = self.element.find('Biografia')
+        self.birth = self.element.findtext('Birth', None)
+        self.death = self.element.findtext('Death', None)
         self.norm_name = self.normalized_name()
     
     def _sanityTest(self):
@@ -88,6 +90,8 @@ class Composer(Person):
             eaccpf.add_bio(bio=self.bio.text)
         else:
             eaccpf.add_bio(bio=self.bio)
+        eaccpf.add_exist_dates(self.birth, self.death)
+            
         
         #Try to ensure that the image does not exist somehow?
         if self.photo:
