@@ -571,17 +571,8 @@ class Concert(ao):
             if i_dict['description'] and 'description' not in dc:
                 dc['description'] = [unicode('%(description)s' % i_dict)]
             dc.setContent()
-            tries = 3
-            while tries > 1:
-                tries -= 1
-                try:
-                    image.state = unicode('A')
-                    break
-                except fcrepo.connection.FedoraConnectionException, e:
-                    if e.httpcode == 409:
-                        time.sleep(1)
-                    else:
-                        raise e
+
+            image.state = unicode('A')
             return True
         else:
             logger.warning('No ID or invalid path for image at line: %(line)s' % i_dict)
