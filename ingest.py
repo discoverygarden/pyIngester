@@ -10,7 +10,7 @@ from FedoraWrapper import FedoraWrapper
 
 #Defaults...
 #FIXME:  Make the config file name be absolute (currently looks in the directory from which this script is executed.)
-CONFIG_FILE_NAME = 'ingest.conf'
+CONFIG_FILE_NAME = os.path.join(os.path.dirname(__file__), 'ingest.conf')
 FILE_LIST = []
 SELECTOR = ''
 DIR_LIST = []
@@ -25,6 +25,7 @@ def main():
     optionp.add_option('-C', '--config-file', type='string', dest='configfile', 
         metavar='FILE', default=CONFIG_FILE_NAME, 
         help='Path to the configuration file.')
+        
     rifle = OptionGroup(optionp, 'Narrow', 'Pick individual files')
     rifle.add_option('-f', '--file', dest='files', action='append', 
         default=FILE_LIST, metavar='FILE', help='individual xml file(s) to ' + 
@@ -33,6 +34,7 @@ def main():
         default=SELECTOR, metavar='SELECTOR', help='Only attempt to import ' + 
         'elements which match the given selector (actual usage depends on ' + 
         'filetype) [0, 1]')
+        
     shotgun = OptionGroup(optionp, 'Wide', 'Try entire directories')
     shotgun.add_option('-d', '--dir', '--directory', dest='dirs', 
         default=DIR_LIST, action='append', metavar='DIR', 
@@ -51,10 +53,6 @@ def main():
     try:
         configp = ConfigParser.SafeConfigParser()
         
-        if(options.configfile):
-            f = options.configfile
-        else:
-            f = CONFIG_FILE_NAME
         configp.read(options.configfile)
             
         section = configp.items('Mappings')
@@ -76,6 +74,9 @@ def main():
                     mappings[sect]['className'])
             except ImportError as e:
                 logger.error(e)
+                
+            if options.selector:
+                mappings[sect]['pattern'] = options.selector
             
     except (ConfigParser.Error, ValueError), e:
         logger.warning('Error reading config file: %s ->  Continuing merrily.', f)
