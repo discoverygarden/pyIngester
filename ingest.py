@@ -54,8 +54,11 @@ def main():
         configp = ConfigParser.SafeConfigParser()
         
         configp.read(options.configfile)
-            
-        section = configp.items('Mappings')
+        
+        if options.selector:
+            section = ('custom', options.selector)
+        else:
+            section = configp.items('Mappings')
         #TODO (minor: naming):  Change "module" to "handler" or similar...
         mapTo = ['pattern', 'prefix', 'modulePkg', 'moduleName', 'classPkg', 'className']
         mappings = dict()
@@ -74,9 +77,12 @@ def main():
                     mappings[sect]['className'])
             except ImportError as e:
                 logger.error(e)
-                
-            if options.selector:
-                mappings[sect]['pattern'] = options.selector
+            
+            #Hmmm...  The selector should work in a manner similar to below, but not quite...  
+            #   Really, I'm thinking it may be necessary just to reproduce a configuration line
+            #   instead of some other syntax...  The configuration should be simplified, though.
+            #if options.selector:
+            #    mappings[sect]['pattern'] = options.selector
             
     except (ConfigParser.Error, ValueError), e:
         logger.warning('Error reading config file: %s ->  Continuing merrily.', f)
