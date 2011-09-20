@@ -52,11 +52,11 @@ def main():
     logger.debug('Creating ConfigParser')
     try:
         configp = ConfigParser.SafeConfigParser()
-        
-        configp.read(options.configfile)
+        conffile = os.path.abspath(options.configfile)
+        configp.read(conffile)
         
         if options.selector:
-            section = ('custom', options.selector)
+            section = [('custom', options.selector)]
         else:
             section = configp.items('Mappings')
         #TODO (minor: naming):  Change "module" to "handler" or similar...
@@ -85,7 +85,9 @@ def main():
             #    mappings[sect]['pattern'] = options.selector
             
     except (ConfigParser.Error, ValueError), e:
-        logger.warning('Error reading config file: %s ->  Continuing merrily.', options.configfile)
+        logger.warning('Error reading config file: %s ->  Continuing merrily.', conffile)
+        logger.exception('%s' % e)
+        logger.debug('%s' % section)
     logger.debug('Done with ConfigParser')  
     
     logger.debug("Mappings: %s", mappings)
