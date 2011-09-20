@@ -6,7 +6,7 @@ import os
 import ConfigParser
 import sys
 from FileHandler import FileHandler
-from FedoraWrapper import FedoraWrapper
+from fjm.FedoraWrapper import FedoraWrapper
 
 #Defaults...
 #FIXME:  Make the config file name be absolute (currently looks in the directory from which this script is executed.)
