@@ -85,7 +85,7 @@ def main():
             #    mappings[sect]['pattern'] = options.selector
             
     except (ConfigParser.Error, ValueError), e:
-        logger.warning('Error reading config file: %s ->  Continuing merrily.', f)
+        logger.warning('Error reading config file: %s ->  Continuing merrily.', options.configfile)
     logger.debug('Done with ConfigParser')  
     
     logger.debug("Mappings: %s", mappings)
