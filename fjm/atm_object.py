@@ -3,12 +3,12 @@ import os.path as path
 from islandoraUtils.metadata import fedora_relationships as FR
 
 class atm_object(object):
-    PREFIX="atm-test"
+    PREFIX="atm"
     NS={
         'fjm-db': FR.rels_namespace('fjm-db', 'http://digital.march.es/db#'),
         'fjm-titn': FR.rels_namespace('fjm-titn', 'http://digital.march.es/titn#'),
         #'atm': FR.rels_namespace('atm', 'http://digital.march.es/atmusica/fedora/rdf'),
-        'atm-rel': FR.rels_namespace('atm-rel', 'http://www.example.org/dummy#'),
+        'atm-rel': FR.rels_namespace('atm-rel', 'http://digital.march.es/atmusica#'),
         'fedora-model': FR.rels_namespace('fedora-model', 'info:fedora/fedora-system:def/model#'),
         'atm': FR.rels_namespace('atm', 'fedora:atm:'),
         'fedora-view': FR.rels_namespace('fedora-view', 'info:fedora/fedora-system:def/view#'),
@@ -63,4 +63,4 @@ class atm_object(object):
                 name.extend(namepart.split())
             except:
                 logging.getLogger('ingest.atm_object.normalize_name').error("Bad object input: %s", namepart)
-        return ' '.join(name).title()
+        return ' '.join(name)

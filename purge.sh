@@ -16,7 +16,7 @@ MSG="Nuked via purge.sh"
 
 #if [ -x $PURGE ]; then
   for PID in $@; do
-    curl -XDELETE -u$USERNAME:$PASSWORD "$PROT://$HOST:$PORT/fedora/objects/$PID"
+    curl -XDELETE -u"$USERNAME:$PASSWORD" "$PROT://$HOST:$PORT/fedora/objects/$PID"
     #$PURGE ${HOST}:${PORT} ${USERNAME} ${PASSWORD} ${PID} ${PROT} "${MSG}" 
   done
 #else
