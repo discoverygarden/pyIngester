@@ -64,6 +64,11 @@ class Score(ao):
         FedoraWrapper.correlateDBEntry('composedBy', 'composerID')
         FedoraWrapper.correlateDBEntry('basedOn', 'scoreID')
         
+        dc = score['DC']
+        dc['type'] = [unicode('StillImage')]
+        dc['title'] = [self.element.findtext('TITULO')]
+        dc.setContent()
+
         filename = self.element.findtext('Ruta_Partitura')
         if filename:
             fn = self.getPath(filename)
@@ -77,11 +82,4 @@ class Score(ao):
                 FL.update_datastream(obj=score, dsid='MARCXML', label="MARC XML", filename=marc, mimeType='application/xml')
         else:
             logger.info('No PDF for %s', self.dbid)
-            
-        
-        
-        dc = score['DC']
-        dc['type'] = [unicode('StillImage')]
-        dc['title'] = [self.element.findtext('TITULO')]
-        dc.setContent()
             

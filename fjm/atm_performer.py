@@ -90,7 +90,7 @@ class Performer(Person):
         eaccpf.add_name_entry(name=self.name)
         
         #Use the fcrepo implementation, as we're just passing a string of XML...
-        self.performer.addDataStream(dsid='EAC-CPF', body='%s' % eaccpf, mimeType=unicode("text/xml"))
+        self.performer.addDataStream(dsid='EAC-CPF', body='%s' % eaccpf, mimeType=unicode("text/xml"), controlGroup=u'M')
         
         self[self.norm_name] = self.performer.pid
         self.performer.state = unicode('A')
