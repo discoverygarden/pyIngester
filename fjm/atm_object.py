@@ -105,12 +105,12 @@ class atm_object(object):
         for key, values in dc_dict.items():
             for value in values:
                 etree.SubElement(doc, '{%s}%s' % (nsmap['dc'], key)).text = value
-        return atm_object.save_etree(fobj, doc, 'DC', 'Dublin Core')
+        return atm_object.save_etree(fobj, doc, 'DC', 'Dublin Core', controlGroup='M', hash='SHA-1')
             
     @staticmethod
-    def save_etree(fobj, element, dsid, label, mimeType='text/xml', controlGroup='X'):
+    def save_etree(fobj, element, dsid, label, mimeType='text/xml', controlGroup='M', hash='SHA-1'):
         with NTF() as temp:
-            etree.ElementTree(element=element).write(temp, encoding="UTF-8")
+            etree.ElementTree(element=element).write(temp, encoding="UTF-8", pretty_print=True)
             temp.flush()
             
-            return update_datastream(fobj, dsid, temp.name, label=label, mimeType=mimeType, controlGroup=controlGroup)
+            return update_datastream(fobj, dsid, temp.name, label=label, mimeType=mimeType, controlGroup=controlGroup, checksumType=hash)

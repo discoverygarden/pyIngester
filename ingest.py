@@ -1,5 +1,9 @@
 #!/usr/bin/env python2.6
 import logging
+logging.basicConfig(filename='ingest.log', level=logging.DEBUG,
+    datefmt='%Y/%m/%d %H:%M:%S',
+    format='%(asctime)s  %(name)s:%(levelname)s: %(message)s')
+logging.debug('Logger initialized')
 import signal
 from optparse import OptionParser, OptionGroup
 import os
@@ -7,6 +11,7 @@ import ConfigParser
 import sys
 from FileHandler import FileHandler
 from fjm.FedoraWrapper import FedoraWrapper
+
 
 #Defaults...
 #FIXME:  Make the config file name be absolute (currently looks in the directory from which this script is executed.)
@@ -142,11 +147,6 @@ def shutdown_handler(signum, frame):
     sys.exit(signum)
 
 if __name__=="__main__":
-    logging.basicConfig(filename='ingest.log', level = 10, 
-        datefmt = '%Y/%m/%d %H:%M:%S', 
-        format = '%(asctime)s  %(name)s:%(levelname)s: %(message)s')
-    logging.debug('Logger initialized')
-    
     # register handlers so we properly disconnect and reconnect
     signal.signal(signal.SIGINT, shutdown_handler)
     signal.signal(signal.SIGTERM, shutdown_handler)
