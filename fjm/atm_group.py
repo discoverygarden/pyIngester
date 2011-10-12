@@ -42,10 +42,10 @@ class Group(ao):
         
         FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=rels_ext).update()
 
-        dc = group['DC']
+        dc = dict()
         dc['type'] = [unicode('Collection')]
         dc['title'] = [self.element.findtext('grupo').strip()]
-        dc.setContent()
+        Group.save_dc(group, dc)
         
         FedoraWrapper.correlateDBEntry('group', 'groupID')
         group.state = unicode('A')

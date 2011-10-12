@@ -57,9 +57,9 @@ class Performer(Person):
                 logger.info('Doesn\'t exist: creating a new Fedora Object')
                 self.performer = FedoraWrapper.getNextObject(self.prefix, label='Performer: %s' % self.dbid)
                 
-            dc = self.performer['DC']
+            dc = dict()
             dc['title'] = [self.norm_name]
-            dc.setContent()
+            Performer.save_dc(self.performer, dc)
 
         rels_ext = FR.rels_ext(self.performer, namespaces=Performer.NS.values())
         rels = [
@@ -89,8 +89,7 @@ class Performer(Person):
         eaccpf.add_XML_source(caption='XML from database dump', xml=self.element)
         eaccpf.add_name_entry(name=self.name)
         
-        #Use the fcrepo implementation, as we're just passing a string of XML...
-        self.performer.addDataStream(dsid='EAC-CPF', body='%s' % eaccpf, mimeType=unicode("text/xml"), controlGroup=u'M')
+        Performer.save_etree(self.performer, eaccpf.element, 'EAC-CPF', 'EAC-CPF record', controlGroup='M')
         
         self[self.norm_name] = self.performer.pid
         self.performer.state = unicode('A')

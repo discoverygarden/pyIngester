@@ -95,49 +95,48 @@ class Composer(Person):
         
         #Try to ensure that the image does not exist somehow?
         if self.photo:
-            try:
-                pid = FedoraWrapper.getPid(uri=Composer.NS['fjm-db'].uri, predicate='composerImageID', obj="'%s'" % self.dbid)
-                photo = FedoraWrapper.client.getObject(pid)
-            except KeyError:
-                photo = FedoraWrapper.getNextObject(self.prefix, label='Image of composer %s' % self.dbid)
-
-            p_rels_ext = FR.rels_ext(photo, namespaces=Composer.NS.values())
-            
             photopath = self.getPath(self.photo)
             #TODO (very minor):  Might be a good idea to check whether or not the photo we're uploading is the same as that which is already in Fedora (use the hash or sommat?)
             if path.exists(photopath):
+                try:
+                    pid = FedoraWrapper.getPid(uri=Composer.NS['fjm-db'].uri, predicate='composerImageID', obj="'%s'" % self.dbid)
+                    photo = FedoraWrapper.client.getObject(pid)
+                except KeyError:
+                    photo = FedoraWrapper.getNextObject(self.prefix, label='Image of composer %s' % self.dbid)
+
+                p_rels_ext = FR.rels_ext(photo, namespaces=Composer.NS.values())
+            
+            
                 FL.update_datastream(obj=photo, dsid='JPG', filename=photopath, mimeType='image/jpeg')
+            
+                rels = [
+                    (
+                        FR.rels_predicate(alias='fjm-db', predicate='composerImageID'),
+                        FR.rels_object(self.dbid, FR.rels_object.LITERAL)
+                    ),
+                    (
+                        FR.rels_predicate(alias='fedora-model', predicate='hasModel'),
+                        FR.rels_object('atm:imageCModel', FR.rels_object.PID)
+                    ),
+                    (
+                        FR.rels_predicate(alias='atm-rel', predicate='isImageOf'),
+                        FR.rels_object(self.composer.pid, FR.rels_object.PID)
+                    ),
+                    (
+                        FR.rels_predicate(alias='atm-rel', predicate='isIconOf'),
+                        FR.rels_object(self.composer.pid, FR.rels_object.PID)
+                    )
+                ]
+
+                FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=p_rels_ext).update()
             else:
                 logger.warning('Image %s specified, but does not seem to exist!' % self.photo)
-            
-            rels = [
-                (
-                    FR.rels_predicate(alias='fjm-db', predicate='composerImageID'),
-                    FR.rels_object(self.dbid, FR.rels_object.LITERAL)
-                ),
-                (
-                    FR.rels_predicate(alias='fedora-model', predicate='hasModel'),
-                    FR.rels_object('atm:imageCModel', FR.rels_object.PID)
-                ),
-                (
-                    FR.rels_predicate(alias='atm-rel', predicate='isImageOf'),
-                    FR.rels_object(self.composer.pid, FR.rels_object.PID)
-                ),
-                (
-                    FR.rels_predicate(alias='atm-rel', predicate='isIconOf'),
-                    FR.rels_object(self.composer.pid, FR.rels_object.PID)
-                )
-            ]
-
-            FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=p_rels_ext).update()
-
-        dc = self.composer['DC']
-
-        #Use the fcrepo implementation, as we're just passing a string of XML...
-        self.composer.addDataStream(dsid='EAC-CPF', body='%s' % eaccpf, mimeType=unicode("text/xml"), controlGroup=u'M')
-
-        dc['title'] = [self.norm_name]
-        dc.setContent()
         
+        dc = dict()
+        
+        dc['title'] = [self.norm_name]
+        
+        Composer.save_dc(self.composer, dc)
+        Composer.save_etree(self.composer, eaccpf.element, 'EAC-CPF', 'EAC-CPF record', controlGroup='M')
         self[self.norm_name] = self.composer.pid
         self.composer.state = unicode('A')

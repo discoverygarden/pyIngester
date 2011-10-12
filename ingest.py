@@ -142,7 +142,7 @@ def shutdown_handler(signum, frame):
     sys.exit(signum)
 
 if __name__=="__main__":
-    logging.basicConfig(filename = 'ingest.log', level = 10, 
+    logging.basicConfig(filename='ingest.log', level = 10, 
         datefmt = '%Y/%m/%d %H:%M:%S', 
         format = '%(asctime)s  %(name)s:%(levelname)s: %(message)s')
     logging.debug('Logger initialized')
@@ -151,6 +151,10 @@ if __name__=="__main__":
     signal.signal(signal.SIGINT, shutdown_handler)
     signal.signal(signal.SIGTERM, shutdown_handler)
     
-    main()
-    logging.shutdown()
+    try:
+        main()
+    except Exception as e:
+        logging.exception(e)
+    finally:
+        logging.shutdown()
 

@@ -64,10 +64,10 @@ class Score(ao):
         FedoraWrapper.correlateDBEntry('composedBy', 'composerID')
         FedoraWrapper.correlateDBEntry('basedOn', 'scoreID')
         
-        dc = score['DC']
+        dc = dict()
         dc['type'] = [unicode('StillImage')]
         dc['title'] = [self.element.findtext('TITULO')]
-        dc.setContent()
+        Score.save_dc(score, dc)
 
         filename = self.element.findtext('Ruta_Partitura')
         if filename:

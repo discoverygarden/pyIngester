@@ -1,6 +1,37 @@
 import logging
 import os.path as path
 from islandoraUtils.metadata import fedora_relationships as FR
+from tempfile import NamedTemporaryFile as NTF
+from islandoraUtils.fedoraLib import update_datastream
+
+try:
+    from lxml import etree
+    logging.debug("running with lxml.etree")
+except ImportError:
+    try:
+        # Python 2.5
+        import xml.etree.cElementTree as etree
+        logging.debug("running with cElementTree on Python 2.5+")
+    except ImportError:
+        try:
+            # Python 2.5
+            import xml.etree.ElementTree as etree
+            logging.debug("running with ElementTree on Python 2.5+")
+        except ImportError:
+            try:
+                # normal cElementTree install
+                import cElementTree as etree
+                logging.debug("running with cElementTree")
+            except ImportError:
+                try:
+                    # normal ElementTree install
+                    import elementtree.ElementTree as etree
+                    logging.debug("running with ElementTree")
+                except ImportError:
+                    message = "Failed to import ElementTree from any known place"
+                    logging.critical(message)
+                    raise ImportError(message)
+
 
 class atm_object(object):
     PREFIX="atm"
@@ -55,7 +86,7 @@ class atm_object(object):
     @staticmethod
     def normalize_name(nameparts):
         '''
-        Explode each item in the iterable 'nameparts', implode with a single space separating tokens, and apply Title Casing
+        Explode each item in the iterable 'nameparts', implode with a single space separating tokens
         '''
         name = list()
         for namepart in nameparts:
@@ -64,3 +95,22 @@ class atm_object(object):
             except:
                 logging.getLogger('ingest.atm_object.normalize_name').error("Bad object input: %s", namepart)
         return ' '.join(name)
+
+    @staticmethod
+    def save_dc(fobj, dc_dict):
+        nsmap = {'dc': 'http://purl.org/dc/elements/1.1/',
+                     'oai_dc': 'http://www.openarchives.org/OAI/2.0/oai_dc/'}
+        dc_dict['identifier'] = [fobj.pid]
+        doc = etree.Element('{%s}dc' % nsmap['oai_dc'], nsmap=nsmap)
+        for key, values in dc_dict.items():
+            for value in values:
+                etree.SubElement(doc, '{%s}%s' % (nsmap['dc'], key)).text = value
+        return atm_object.save_etree(fobj, doc, 'DC', 'Dublin Core')
+            
+    @staticmethod
+    def save_etree(fobj, element, dsid, label, mimeType='text/xml', controlGroup='X'):
+        with NTF() as temp:
+            etree.ElementTree(element=element).write(temp, encoding="UTF-8")
+            temp.flush()
+            
+            return update_datastream(fobj, dsid, temp.name, label=label, mimeType=mimeType, controlGroup=controlGroup)

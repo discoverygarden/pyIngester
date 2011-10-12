@@ -82,20 +82,12 @@ class Concert(ao):
         except KeyError:
             concert = FedoraWrapper.getNextObject(prefix=self.prefix, label="concert %s" % self.dbid)
         
-        #Dump the DB XML for the concert element into a tempfile before ingesting.
-        #XXX: Had to set the bufsize to 32K, as the default of 4K (based on OS,
-        #   really) resulted in the xml being truncated...  Doesn't grow, for 
-        #   some reason.
+        
         logger.info('Adding CustomXML datastream')
-        with TF.NamedTemporaryFile(bufsize=32*1024, delete=True) as temp:
-            etree.ElementTree(self.element).write(file=temp, 
-                pretty_print=True, encoding='utf-8')
-            temp.flush()
-            if FL.update_datastream(obj=concert, dsid='CustomXML', 
-                filename=temp.name, mimeType="text/xml"):
-                logger.info('CustomXML added successfully')
-            else:
-                logger.error('Error while adding CustomXML!')
+        if Concert.save_etree(concert, self.element, 'CustomXML', 'Original XML', controlGroup='M'):
+            logger.info('CustomXML added successfully')
+        else:
+            logger.error('Error while adding CustomXML!')
         
         #Ingest the WAV (if it exists...)
         WAV = self.element.findtext('Grabacion/wav')
@@ -164,12 +156,12 @@ class Concert(ao):
         FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=rels_ext).update()
         
         desc = self.element.findtext('Descripcion')
-        dc = concert['DC']
+        dc = dict()
         dc['type'] = [unicode('Event')]
         if desc:
             dc['description'] = [unicode(desc)]
         dc['title'] = [unicode(Concert.normalize_name([self.element.findtext('titulo')]))]
-        dc.setContent()
+        Concert.save_dc(concert, dc)
         
         self.concert_obj = concert
         concert.state = unicode('A')
@@ -219,9 +211,9 @@ class Concert(ao):
                     author = FedoraWrapper.client.getObject(pid)
                 except KeyError:
                     author = FedoraWrapper.getNextObject(self.prefix, label="an author")
-                    dc = author['DC']
+                    dc = dict()
                     dc['title'] = [normed]
-                    dc.setContent()
+                    Concert.save_dc(author, dc)
                     
                 rels.append(
                     (
@@ -251,9 +243,8 @@ class Concert(ao):
                     eaccpf.add_maintenance_event(type=event_type, time="now", agent_type="machine", agent="atm_concert.py")
                     eaccpf.add_XML_source(caption='(Slightly modified (Put into an element)) XML from database dump', xml=a_el)
                     eaccpf.add_name_entry(name={'forename': fore, 'surname': sur})
-                
-                    #Use the fcrepo implementation, as we're just passing a string of XML...
-                    author.addDataStream(dsid='EAC-CPF', body='%s' % eaccpf, mimeType=unicode("text/xml"))
+
+                    Concert.save_etree(author, eaccpf.element, 'EAC-CPF', 'EAC-CPF record', controlGroup='M')
                     author.state = unicode('A')
                 
             #XXX: This is seeming particularly less-than-elegant at the moment, creating a 'placeholder' object for composer notes...  Anyway.
@@ -274,10 +265,13 @@ class Concert(ao):
                         else:
                             raise e
                     eaccpf.add_maintenance_event(type=event_type, time="now", agent_type="machine", agent="atm_concert.py")
-                    eaccpf.add_name_entry(name={'forename': 'Texto', 'surname': 'Compositore'})
+                    name = {'forename': 'Texto', 'surname': 'Compositores'}
+                    eaccpf.add_name_entry(name=name)
                     
-                    #Use the fcrepo implementation, as we're just passing a string of XML...
-                    author.addDataStream(dsid='EAC-CPF', body='%s' % eaccpf, mimeType=unicode("text/xml"))
+                    dc = dict()
+                    dc['title'] = Concert.normalize_name(name)
+                    Concert.save_dc(author, dc)
+                    Concert.save_etree(author, eaccpf.element, 'EAC-CPF', 'EAC-CPF record', controlGroup='M')
             
                 rels.append(
                     (
@@ -306,9 +300,9 @@ class Concert(ao):
             FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=rels_ext).update()
             
             #Update DC
-            dc = program['DC']
+            dc = dict()
             dc['type'] = [unicode('Text')]
-            dc.setContent()
+            Concert.save_dc(program, dc)
             program.state = unicode('A')
     
     def __processPerformance(self, p_el):
@@ -400,11 +394,11 @@ class Concert(ao):
                     mov = FedoraWrapper.getNextObject(self.prefix, label='Movement: %(concert)s/%(piece)s/%(id)s' % m_dict)
                 
                 #Get DC and set the title if we have a name.
-                mov_dc = mov['DC']
+                mov_dc = dict()
                 mov_dc['type'] = [unicode('Event')]
                 if m_dict['name']:
                     mov_dc['title'] = [unicode(m_dict['name'])]
-                mov_dc.setContent()
+                Concert.save_dc(mov, mov_dc)
                 
                 #Set the three required relations:
                 #1 - To the performance
@@ -565,12 +559,12 @@ class Concert(ao):
             #Update and commit the rels_ext
             FedoraWrapper.addRelationshipsWithoutDup(rels, rels_ext=i_rels_ext).update()
             
-            dc = image['DC']
+            dc = dict()
             dc['type'] = [unicode('StillImage')]
             #Add a description, based on the 'pie' (if it exists, and there isn't already on for the image...), and don't clobber any existing description...
             if i_dict['description'] and 'description' not in dc:
                 dc['description'] = [unicode('%(description)s' % i_dict)]
-            dc.setContent()
+            Concert.save_dc(image, dc)
 
             image.state = unicode('A')
             return True
@@ -646,11 +640,11 @@ class Concert(ao):
                 else:
                     logger.warning('No MP3 indicated for id %(id)s on line %(line)s' % e_dict)
                 
-                dc = conference['DC']
+                dc = dict()
                 dc['type'] = [unicode('Sound')]
                 dc['description'] = [unicode(e_dict['description'])]
                 dc['subject'] = [unicode(e_dict['type'])]
-                dc.setContent()
+                Concert.save_dc(conference, dc)
                 conference.state = unicode('A')
                 
                     
