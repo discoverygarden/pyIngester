@@ -10,6 +10,7 @@ class FedoraWrapper:
     #Static variables, so only one connection and client should exist at any time.
     connection = None
     client = None
+    logger = logging.getLogger('pyIngester.fjm.FedoraWrapper')
     
     @staticmethod
     def init():
@@ -40,7 +41,11 @@ class FedoraWrapper:
         pid = FedoraWrapper.client.getNextPID(unicode(prefix))
         #Create the object--initially inactive
         #FIXME (major):  Make objects be created as 'Inactive'...  Bloody timelines.
-        return FedoraWrapper.client.createObject(pid, label=unicode(label), state=u'A')
+        obj = FedoraWrapper.client.createObject(pid, label=unicode(label), state=u'A')
+        
+        FedoraWrapper.logger.debug(FedoraWrapper.client.getObjectProfile(pid))
+        
+        return obj
 
     @staticmethod
     def getPid(uri='fedora:', predicate=None, obj=None, tuples=None, default=None):
