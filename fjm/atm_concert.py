@@ -1,7 +1,6 @@
 #!/usr/bin/env python2.6
 import logging
-from FedoraWrapper import FedoraWrapper
-from islandoraUtils import fedoraLib as FL
+from FedoraWrapper import FedoraWrapper, update_datastream
 from islandoraUtils.metadata import fedora_relationships as FR, eaccpf as CPF
 import os.path as path
 from atm_object import atm_object as ao
@@ -94,7 +93,7 @@ class Concert(ao):
         if WAV:
             WAV = self.getPath(WAV)
             if path.exists(WAV):
-                FL.update_datastream(obj=concert, dsid='WAV', filename=WAV, 
+                update_datastream(obj=concert, dsid='WAV', filename=WAV, 
                     label='WAV', mimeType="audio/x-wav")
             else:
                 logger.warning('WAV file specified (%s), but does not exist!', WAV)
@@ -104,7 +103,7 @@ class Concert(ao):
         #Ingest the MARCXML...  FIXME: Maybe this might not make sense to attempt, if there's no WAV?
         MARC = path.join(path.dirname(WAV), '%s.xml' % self.dbid)
         if path.exists(MARC):
-            FL.update_datastream(obj=concert, dsid='MARCXML', mimeType="application/xml", filename=MARC)
+            update_datastream(obj=concert, dsid='MARCXML', mimeType="application/xml", filename=MARC)
             logger.debug('Added %s', MARC)
         else:
             logger.debug('Couldn\'t find MARCXML at %s', MARC)
@@ -181,7 +180,7 @@ class Concert(ao):
                 label='Program for concert %(dbid)s' % {'dbid': self.dbid})
         
             #Add the PDF to the program object...  Should probably do an "existence" check, but anyway...
-            FL.update_datastream(obj=program, dsid='PDF', 
+            update_datastream(obj=program, dsid='PDF', 
                 filename=filename,
                 mimeType='application/pdf'
             )
@@ -283,7 +282,7 @@ class Concert(ao):
                 author.state = unicode('A')
                 
             #Add the MARCXML to the object...
-            FL.update_datastream(obj=program, dsid='MARCXML', 
+            update_datastream(obj=program, dsid='MARCXML', 
                 filename=path.join(path.dirname(filename), self.dbid + '.xml'),
                 mimeType='application/xml')
                 
@@ -330,7 +329,7 @@ class Concert(ao):
         if p_mp3:
             mp3_path = self.getPath(p_mp3)
             if path.exists(mp3_path):
-                FL.update_datastream(obj=performance, dsid='MP3', 
+                update_datastream(obj=performance, dsid='MP3', 
                     filename=mp3_path, mimeType='audio/mpeg')
             else:
                 logger.warning('MP3 entry for performance of %(piece)s in concert %(concert)s, but the file does not exist!' % p_dict)
@@ -426,7 +425,7 @@ class Concert(ao):
                 if m_dict['MP3']:
                     mp3_path = self.getPath(m_dict['MP3'])
                     if path.exists(mp3_path):
-                        FL.update_datastream(obj=mov, dsid='MP3', 
+                        update_datastream(obj=mov, dsid='MP3', 
                             filename=mp3_path, mimeType='audio/mpeg')
                     else:
                         logger.warning("MP3 entry for movement %(id)s in performance of %(piece)s in %(concert)s on line %(line)s of %(file)s" % m_dict)
@@ -527,7 +526,7 @@ class Concert(ao):
                 image = FedoraWrapper.getNextObject(self.prefix, label='Image: %(id)s' % i_dict)
                 
             #FIXME:  Detect Mimetype, and create image accordingly?
-            FL.update_datastream(obj=image, dsid="JPG", filename=self.getPath(i_dict['path']), mimeType="image/jpeg")
+            update_datastream(obj=image, dsid="JPG", filename=self.getPath(i_dict['path']), mimeType="image/jpeg")
                 
             i_rels_ext = FR.rels_ext(obj=image, namespaces=ao.NS.values())
                 
@@ -634,7 +633,7 @@ class Concert(ao):
                 if e_dict['mp3_path']:
                     mp3_path = self.getPath(e_dict['mp3_path'])
                     if path.exists(mp3_path):
-                        FL.update_datastream(obj=conference, dsid='MP3', filename=mp3_path, mimeType="audio/mpeg")
+                        update_datastream(obj=conference, dsid='MP3', filename=mp3_path, mimeType="audio/mpeg")
                     else:
                         logger.error('MP3 specified (%(mp3_path)s), but doesn\'t exist for id %(id)s on line %(line)s' % e_dict)
                 else:

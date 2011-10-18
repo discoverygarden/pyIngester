@@ -1,11 +1,22 @@
 #!/usr/bin/env python2.6
 
+
+from islandoraUtils.fedoraLib import update_datastream as UD
+
+def update_datastream(obj, dsid, filename, label='', mimeType='', controlGroup='M', tries=3, checksumType=None, checksum=None):
+    '''
+    Wrap it, so as to be able to sleep for an amount of time beforehand, to try to get rid of the timestamp issues.
+    '''
+    sleep(10)
+    return UD(obj=obj, dsid=dsid, filename=filename, label=label, mimeType=mimeType, controlGroup=controlGroup, tries=tries, checksumType=checksumType, checksum=checksum)
+    
 import logging, sys
 from fcrepo.connection import Connection
 from fcrepo.client import FedoraClient as Client
 from atm_object import atm_object as ao
 from islandoraUtils.metadata import fedora_relationships as FR
-                    
+from time import sleep
+
 class FedoraWrapper:
     #Static variables, so only one connection and client should exist at any time.
     connection = None
@@ -43,7 +54,7 @@ class FedoraWrapper:
         #FIXME (major):  Make objects be created as 'Inactive'...  Bloody timelines.
         obj = FedoraWrapper.client.createObject(pid, label=unicode(label), state=u'A')
         
-        FedoraWrapper.logger.debug(FedoraWrapper.client.getObjectProfile(pid))
+        #FedoraWrapper.logger.debug(FedoraWrapper.client.getObjectProfile(pid))
         
         return obj
 
@@ -89,7 +100,7 @@ minus $obj <fedora-model:state> <fedora-model:Deleted>' % ' and '.join(filter)
                 else:
                     prefix = 'info:fedora/'
                     return pid[len(prefix):]
-            except KeyError as e:
+            except KeyError, e:
                 if not default:
                     raise e
                 else:

@@ -1,7 +1,6 @@
 
 import logging
 from islandoraUtils.metadata import fedora_relationships as FR, eaccpf as CPF
-from islandoraUtils import fedoraLib as FL
 from atm_person import Person
 from FedoraWrapper import FedoraWrapper
 from tempfile import NamedTemporaryFile
@@ -79,7 +78,7 @@ class Performer(Person):
         try:
             eaccpf = CPF.EACCPF(self.performer.pid, xml=self.performer['EAC-CPF'].getContent().read())
             event_type="modified"
-        except fcrepo.connection.FedoraConnectionException, e:
+        except fcrepo.connection.FedoraConnectionException as e:
             if e.httpcode == 404:
                 eaccpf = CPF.EACCPF(self.performer.pid)
                 event_type="created"

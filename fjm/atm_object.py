@@ -2,7 +2,7 @@ import logging
 import os.path as path
 from islandoraUtils.metadata import fedora_relationships as FR
 from tempfile import NamedTemporaryFile as NTF
-from islandoraUtils.fedoraLib import update_datastream
+from FedoraWrapper import update_datastream
 
 try:
     from lxml import etree

@@ -1,7 +1,7 @@
 
 import logging
 from islandoraUtils.metadata import fedora_relationships as FR, eaccpf as CPF
-from islandoraUtils import fedoraLib as FL
+from FedoraWrapper import update_datastream
 from atm_person import Person
 from FedoraWrapper import FedoraWrapper
 from tempfile import NamedTemporaryFile
@@ -107,7 +107,7 @@ class Composer(Person):
                 p_rels_ext = FR.rels_ext(photo, namespaces=Composer.NS.values())
             
             
-                FL.update_datastream(obj=photo, dsid='JPG', filename=photopath, mimeType='image/jpeg')
+                update_datastream(obj=photo, dsid='JPG', filename=photopath, mimeType='image/jpeg')
             
                 rels = [
                     (

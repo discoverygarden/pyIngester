@@ -1,9 +1,8 @@
 
 import logging
-from islandoraUtils import fedoraLib as FL
 from islandoraUtils.metadata import fedora_relationships as FR
 from atm_object import atm_object as ao
-from FedoraWrapper import FedoraWrapper
+from FedoraWrapper import FedoraWrapper, update_datastream
 import os.path as path
 
 class Score(ao):
@@ -73,13 +72,13 @@ class Score(ao):
         if filename:
             fn = self.getPath(filename)
             if path.exists(fn):
-                FL.update_datastream(obj=score, dsid='PDF', label="Score PDF", filename=fn, mimeType='application/pdf')
+                update_datastream(obj=score, dsid='PDF', label="Score PDF", filename=fn, mimeType='application/pdf')
             else:
                 logger.error('PDF specified for score %(id)s, but file does not seem to exist!' % {'id': self.dbid})
                 
             marc = self.getPath(path.join(path.dirname(filename), '%s.xml' % self.dbid))
             if path.exists(marc):
-                FL.update_datastream(obj=score, dsid='MARCXML', label="MARC XML", filename=marc, mimeType='application/xml')
+                update_datastream(obj=score, dsid='MARCXML', label="MARC XML", filename=marc, mimeType='application/xml')
         else:
             logger.info('No PDF for %s', self.dbid)
             
