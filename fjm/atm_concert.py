@@ -119,8 +119,9 @@ class Concert(ao):
         except KeyError:
             cycle = FedoraWrapper.getNextObject(prefix=self.prefix, label='Cycle %s' % (len(Concert.__cycles()) + 1))
             Concert.__cycles()[cycle_info['norm_name']] = cycle.pid
-            cycle['DC']['title'] = [cycle_info['norm_name']]
-            cycle['DC'].setContent()
+            c_dc = dict()
+            c_dc['title'] = [cycle_info['norm_name']]
+            Concert.save_dc(cycle, c_dc)
         FedoraWrapper.addRelationshipsWithoutDup(rels=[
             (
                 FR.rels_predicate(alias='fedora-model', predicate='hasModel'),

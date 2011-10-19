@@ -7,7 +7,7 @@ def update_datastream(obj, dsid, filename, label='', mimeType='', controlGroup='
     '''
     Wrap it, so as to be able to sleep for an amount of time beforehand, to try to get rid of the timestamp issues.
     '''
-    sleep(10)
+    sleep(5)
     return UD(obj=obj, dsid=dsid, filename=filename, label=label, mimeType=mimeType, controlGroup=controlGroup, tries=tries, checksumType=checksumType, checksum=checksum)
     
 import logging, sys

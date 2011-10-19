@@ -33,8 +33,9 @@ class Instrument(ao):
                 )
             ]
             FedoraWrapper.addRelationshipsWithoutDup(c_rels, fedora=instrumentClass).update()
-            instrumentClass['DC']['title'] = [self.instrumentClass]
-            instrumentClass['DC'].setContent()
+            dc = dict()
+            dc['title'] = [self.instrumentClass]
+            Instrument.save_dc(instrumentClass, dc)
         instrumentClass.state = unicode('A')
             
         try:
@@ -43,8 +44,9 @@ class Instrument(ao):
         except KeyError:
             instrument = FedoraWrapper.getNextObject(self.prefix, label='Instrument %s' % self.dbid)
             Instrument.__addInstrument(self.instrumentName, instrument.pid)
-            instrument['DC']['title'] = [self.instrumentName]
-            instrument['DC'].setContent()
+            dc = dict()
+            dc['title'] = [self.instrumentName]
+            Instrument.save_dc(instrument, dc)
         i_rels = [
             (
                 FR.rels_predicate(alias='fjm-db', predicate='instrumentID'),
