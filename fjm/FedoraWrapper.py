@@ -1,11 +1,12 @@
 #!/usr/bin/env python2.6
 
 
-from islandoraUtils.fedoraLib import update_datastream as UD
+from islandoraUtils.fedoraLib import update_hashed_datastream_without_dup as UD
 
-def update_datastream(obj, dsid, filename, label='', mimeType='', controlGroup='M', tries=3, checksumType=None, checksum=None):
+def update_datastream(obj, dsid, filename, label='', mimeType='', controlGroup='M', tries=3, checksumType='SHA-1', checksum=None):
     '''
     Wrap it, so as to be able to sleep for an amount of time beforehand, to try to get rid of the timestamp issues.
+    NOTE:  This dedup stuff doesn't really work on the EAC-CPF, EAC-CPF includes a current timestamp:  Therefore, it will always change.
     '''
     sleep(5)
     return UD(obj=obj, dsid=dsid, filename=filename, label=label, mimeType=mimeType, controlGroup=controlGroup, tries=tries, checksumType=checksumType, checksum=checksum)
