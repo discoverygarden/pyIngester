@@ -2,6 +2,8 @@
 
 
 from islandoraUtils.fedoraLib import update_hashed_datastream_without_dup as UD
+import os
+import subprocess
 
 def update_datastream(obj, dsid, filename, label='', mimeType='', controlGroup='M', tries=3, checksumType='SHA-1', checksum=None):
     '''
@@ -9,6 +11,11 @@ def update_datastream(obj, dsid, filename, label='', mimeType='', controlGroup='
     NOTE:  This dedup stuff doesn't really work on the EAC-CPF, EAC-CPF includes a current timestamp:  Therefore, it will always change.
     '''
     sleep(5)
+    if filename.endswith('.mp3'):
+        logfilename = '%s.mp3val.log' % filename
+        if not os.path.exists(logfilename) or os.path.getmtime(logfilename) < os.path.getmtime(filename):
+            command = ['mp3val', '-f', '-nb', '-t', '-l%s' % logfilename, filename]
+            subprocess.call(command)
     return UD(obj=obj, dsid=dsid, filename=filename, label=label, mimeType=mimeType, controlGroup=controlGroup, tries=tries, checksumType=checksumType, checksum=checksum)
     
 import logging, sys
