@@ -6,6 +6,8 @@ from FedoraWrapper import FedoraWrapper, update_datastream
 import os.path as path
 
 class Score(ao):
+    pattern = 'Obra[@id]'
+    handler = ('XMLHandler', 'XMLHandler')
     def __init__(self, file_path, element, prefix=ao.PREFIX):
         super(Score, self).__init__(file_path, element, prefix, loggerName='ingest.XMLHandler.atm_score')
         

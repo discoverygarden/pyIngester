@@ -48,17 +48,15 @@ class XMLHandler(FileHandler):
         
         try:
             xml = etree.parse(f)
-            logger.info('Processing %s with pattern %s', f, settings['pattern'])
-            for item in xml.findall(settings['pattern']):
+            logger.info('Processing %s with pattern %s', f, settings['class'].pattern)
+            for item in xml.findall(settings['class'].pattern):
                 try:
                     toProcess = settings['class'](file_path=f, element=item)
                 except KeyError as e:
                     logger.debug('Bad key: %s...  Object builder of this type probably doesn\'t exist yet', 'class')
-                #    pass
                 except TypeError as e:
                     logger.error('%s', settings)
                     logger.error('%s (this type probably doesn\'t exist yet)', e)
-                #    pass
                 else:
                     toProcess.process()
                     del toProcess

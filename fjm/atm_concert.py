@@ -40,6 +40,8 @@ except ImportError:
 
 class Concert(ao):
     CYCLES = None
+    pattern = 'Concierto[@id_concierto]'
+    handler = ('XMLHandler', 'XMLHandler')
     def __init__(self, file_path, element, prefix=ao.PREFIX):
         super(Concert, self).__init__(file_path, element, prefix, loggerName='ingest.XMLHandler.Concert')
         

@@ -38,10 +38,10 @@ class atm_object(object):
     NS={
         'fjm-db': FR.rels_namespace('fjm-db', 'http://digital.march.es/db#'),
         'fjm-titn': FR.rels_namespace('fjm-titn', 'http://digital.march.es/titn#'),
-        #'atm': FR.rels_namespace('atm', 'http://digital.march.es/atmusica/fedora/rdf'),
+        #'atm': FR.rels_namespace('atm', 'http://digital.march.es/atmusica#'),
         'atm-rel': FR.rels_namespace('atm-rel', 'http://digital.march.es/atmusica#'),
         'fedora-model': FR.rels_namespace('fedora-model', 'info:fedora/fedora-system:def/model#'),
-        'atm': FR.rels_namespace('atm', 'fedora:atm:'),
+        'atm': FR.rels_namespace('atm', 'info:fedora/atm:'),
         'fedora-view': FR.rels_namespace('fedora-view', 'info:fedora/fedora-system:def/view#'),
         'fedora-rels-ext': FR.rels_namespace('fedora-rels-ext', 'info:fedora/fedora-system:def/relations-external#')
     }

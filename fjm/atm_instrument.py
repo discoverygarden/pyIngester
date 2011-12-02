@@ -6,6 +6,8 @@ from FedoraWrapper import FedoraWrapper
 class Instrument(ao):
     INSTRUMENT_CLASS = None
     INSTRUMENT = None
+    pattern = 'Instrumento[@id]'
+    handler = ('XMLHandler', 'XMLHandler')
     def __init__(self, file_path, element, prefix=ao.PREFIX):
         super(Instrument, self).__init__(file_path, element, prefix, loggerName='ingest.XMLHandler.atm_instrument')
         FedoraWrapper.init()

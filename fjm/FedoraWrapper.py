@@ -59,7 +59,7 @@ class FedoraWrapper:
         FedoraWrapper.init()
         pid = FedoraWrapper.client.getNextPID(unicode(prefix))
         #Create the object--initially inactive
-        #FIXME (major):  Make objects be created as 'Inactive'...  Bloody timelines.
+        #FIXME (minor):  Make objects be created as 'Inactive'...  Bloody timelines.
         obj = FedoraWrapper.client.createObject(pid, label=unicode(label), state=u'A')
         
         #FedoraWrapper.logger.debug(FedoraWrapper.client.getObjectProfile(pid))

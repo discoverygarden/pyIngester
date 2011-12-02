@@ -5,6 +5,8 @@ from atm_object import atm_object as ao
 from FedoraWrapper import FedoraWrapper
 
 class Group(ao):
+    pattern = 'Grupo[@id]'
+    handler = ('XMLHandler', 'XMLHandler')
     def __init__(self, file_path, element, prefix=ao.PREFIX):
         super(Group, self).__init__(file_path, element, prefix, loggerName='ingest.XMLHandler.atm_group')
         

@@ -7,6 +7,8 @@ from tempfile import NamedTemporaryFile
 import fcrepo
 
 class Performer(Person):
+    pattern = 'Interprete[@id]'
+    handler = ('XMLHandler', 'XMLHandler')
     def __init__(self, file_path, element, prefix=Person.PREFIX):
         super(Performer, self).__init__(file_path, element, prefix, loggerName='ingest.XMLHandler.atm_performer')
         

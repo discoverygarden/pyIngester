@@ -65,23 +65,25 @@ def main():
         else:
             section = configp.items('Mappings')
         #TODO (minor: naming):  Change "module" to "handler" or similar...
-        mapTo = ['pattern', 'prefix', 'modulePkg', 'moduleName', 'classPkg', 'className']
+        mapTo = ['classPkg', 'className']
         mappings = dict()
         for sect, values in section:
             mappings[sect] = dict(zip(mapTo, values.split(',')))
             logger.debug("%s", mappings[sect])
-            try:
-                __import__(mappings[sect]['modulePkg'])
-                mappings[sect]['module'] = getattr(sys.modules[mappings[sect]['modulePkg']],
-                    mappings[sect]['moduleName'])
-            except ImportError as e:
-                logger.error(e)
+            
             try:
                 __import__(mappings[sect]['classPkg'])
                 mappings[sect]['class'] = getattr(sys.modules[mappings[sect]['classPkg']],
                     mappings[sect]['className'])
             except ImportError as e:
                 logger.error(e)
+            else:
+                try:
+                    __import__(mappings[sect]['class'].handler[0])
+                    mappings[sect]['module'] = getattr(sys.modules[mappings[sect]['class'].handler[0]],
+                        mappings[sect]['class'].handler[1])
+                except ImportError as e:
+                    logger.error(e)
             
             #Hmmm...  The selector should work in a manner similar to below, but not quite...  
             #   Really, I'm thinking it may be necessary just to reproduce a configuration line
