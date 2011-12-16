@@ -2,8 +2,8 @@
 import csv
 from os import path
 from atm_object import atm_object as ao
-from FedoraWrapper import FedoraWrapper
-from islandoraUtils.fedoraLib import update_hashed_datastream_without_dup as update_datastream
+from FedoraWrapper import FedoraWrapper, update_datastream
+#from islandoraUtils.fedoraLib import update_hashed_datastream_without_dup as update_datastream
 from islandoraUtils.metadata.eaccpf import EACCPF as eaccpf
 from islandoraUtils.metadata import fedora_relationships as FR
 from islandoraUtils.xmlib import import_etree
@@ -12,23 +12,23 @@ etree = import_etree()
 class Authority(ao):
     handler = ('CSVHandler', 'CSVHandler')
     #element should be a list of values, as provided by csv.reader...
-    def __init__(self, file_path, element, prefix='ir-test', loggerName='ingest.FileHandler.atm_authority'):
+    def __init__(self, file_path, element, prefix='ir-test-again', loggerName='ingest.FileHandler.atm_authority'):
         super(Authority, self).__init__(file_path, element, prefix, loggerName)
         
     def process(self):
-        #Crazy bit of unpacking...
-        self.logger.debug('Received line: %s' % self.element)
+        #self.logger.debug('Received line: %s' % self.element)
         
         info = dict()
-        for part, value in zip(['full_name', 'lib_o_cong', 'forename', 'surname', 'birth_date', 'death_date', 'title', 'dirty_alt_forename', 'alt_forename', 'ceacs_member', 'academic_page', 'ceacs_arrival', 'ceacs_depart', 'phd_date', 'photo', 'other'], self.element):
-            val = unicode(value, 'UTF-8').strip()
+        for part, value in zip(['forename', 'surname', 'birth_date', 'death_date', 'alt_forename', 'ceacs_member', 'academic_page', 'ceacs_arrival', 'ceacs_depart', 'phd_date', 'photo'], self.element):
+            val = unicode(value.strip(), 'UTF-8', 'replace')
             if val or part in ['birth_date', 'death_date']:
                 info[part] = val
-        self.logger.debug('info dictionary: %s' % info)
+        if 'photo' not in info:
+            return
+        #self.logger.debug('info dictionary: %s' % info)
         
-        #auth_record = FedoraWrapper.getNextObject(prefix=self.prefix, label=unicode(info['full_name']))
-        auth_record = object()
-        auth_record.pid = 'test'
+        info['full_name'] = "%(surname)s, %(forename)s" % info
+        auth_record = FedoraWrapper.getNextObject(prefix=self.prefix, label=info['full_name'].encode('ascii', 'replace'))
         
         cpf = eaccpf(auth_record.pid)
         
@@ -89,28 +89,28 @@ class Authority(ao):
         cpf.add_exist_dates(info['birth_date'], info['death_date'])
 
         #print(cpf)
-        Authority.save_etree(auth_record, cpf.element, 'EAC-CPF', 'EAC-CPF record')
-        rels = FR.rels_ext(auth_record, namespaces=Authority.NSMAP)
-        rels.addRelationship(['fedora-model', 'hasModel'], 'ir:authorityCModel')
+        Authority.save_etree(auth_record, cpf.element, 'EAC-CPF', 'EAC-CPF record', controlGroup='X', hash='DISABLED')
+        rels = FR.rels_ext(obj=auth_record, namespaces=Authority.NS.values())
+        rels.addRelationship(['fedora-model', 'hasModel'], ['ir:authorityCModel', 'pid'])
         rels.update()
         
         #Add image (with relationship to object?).
         if 'photo' in info:
-            photo_path = self.getPath(info['path'])
+            photo_path = self.getPath(info['photo'])
             if path.exists(photo_path):
                 #Create the object...
-                photo = FedoraWrapper.getNextObject(self.prefix, 'Photo of %s' % info['full_name'])
+                photo = FedoraWrapper.getNextObject(self.prefix, label=('Photo of %s' % info['full_name']).encode('ascii', 'replace'))
                 
                 #... add the datastream ...
-                update_datastream(photo, 'JPG', 'Original image', checksumType='SHA-1', mimeType='image/jpeg')
+                update_datastream(photo, 'JPG', filename=photo_path, label='Original image', checksumType='SHA-1', mimeType='image/jpeg')
                 
                 #... and relate the object.
-                NSs = Authority.NSMAP
-                NSs['ir-rel'] = 'http://digital.march.es/ceacs#'
-                p_rels = FR.rels_ext(photo, namespaces=NSs)
+                NSs = Authority.NS
+                NSs['ir-rel'] = FR.rels_namespace('ir-rel', 'http://digital.march.es/ceacs#')
+                p_rels = FR.rels_ext(photo, namespaces=NSs.values())
                 
-                p_rels.addRelationship(['fedora-model', 'hasModel'],'ir:photoCModel')
-                p_rels.addRelationship(['ir-rel', 'iconOf'], auth_record.pid)
+                p_rels.addRelationship(['fedora-model', 'hasModel'], ['ir:photoCModel', 'pid'])
+                p_rels.addRelationship(['ir-rel', 'iconOf'], [auth_record.pid, 'pid'])
                 p_rels.update()
             else:
                 self.logger.warning('photo: %s specified, but %s does not exist!' % (info['photo'], photo_path))
