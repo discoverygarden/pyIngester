@@ -1,3 +1,8 @@
+NOTE:  This is rather 'experimental'.  Something like this is necessary, but
+  would be better off using an existing plugin architecture (such as yapsy), 
+  instead of the simplified one contained in this code, which was written 
+  from 'scratch'.
+
 Fedora Object Builder/Ingester...
 
 Meant to be able to add the base datastreams from a file or directory, using a certain module/configuration.
